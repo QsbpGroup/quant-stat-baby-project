@@ -163,6 +163,6 @@ def find_high_low_xuejieZuhui(df, filename='000001.SZ.csv', n_days=200, draw=Tru
         plt.show()
         
     return (peaks, valleys, high_points, low_points)
-
+# note below todos.
 # TODO: 暂存分析数据，自定义画图天数n，画出最近n天的图
 # tODO：找到趋势中部的局部横盘；联系学妹看他的进度
