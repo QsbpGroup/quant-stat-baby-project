@@ -2,7 +2,7 @@ import os
 import time
 import pandas as pd
 import matplotlib.pyplot as plt
-import numpy as np
+
 # 获取股票数据文件夹的路径
 data_directory = '/Users/kai/Desktop/qs/data_csv_distinct_0606'
 # 设置结果保存文件夹的路径
