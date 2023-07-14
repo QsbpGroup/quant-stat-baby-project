@@ -61,9 +61,9 @@ def find_horizontal_area(df, high_points, low_points, max_len_of_window=30, min_
                                         'price_change': price_change,
                                         'interval': interval}, ignore_index=True)
                 index = i+j
-    print('len of result:', len(result))
-    print('mean of interval:', result['interval'].mean())
-    print('--------------------------------------------------')
+    # print('len of result:', len(result))
+    # print('mean of interval:', result['interval'].mean())
+    # print('--------------------------------------------------')
     if draw_hist:
         # 输出横盘区间的长度分布直方图然后关闭画布
         plt.hist(result['interval'], bins=100)
@@ -151,3 +151,4 @@ def draw_horizontal_area(df, result, peaks, valleys, high_points, low_points, st
         plot_name = stock_name + '_horizontal_area.png'
         plt.savefig(plot_name)
     plt.close()
+    return len(result), result['interval'].sum()
