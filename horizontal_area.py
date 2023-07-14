@@ -63,6 +63,7 @@ def find_horizontal_area(df, high_points, low_points, max_len_of_window=30, min_
                 index = i+j
     print('len of result:', len(result))
     print('mean of interval:', result['interval'].mean())
+    print('--------------------------------------------------')
     if draw_hist:
         # 输出横盘区间的长度分布直方图然后关闭画布
         plt.hist(result['interval'], bins=100)
@@ -71,12 +72,9 @@ def find_horizontal_area(df, high_points, low_points, max_len_of_window=30, min_
     return result
 
 
-def draw_horizontal_area(df, result, peaks, valleys, high_points, low_points, n_days=100, print_result=True):
+def draw_horizontal_area(df, result, peaks, valleys, high_points, low_points, stock_name, n_days=100, print_result=True, show_plot=True, save_plot=True):
     # 获取最后100天的数据
     last_hundred_days_df = df.tail(n_days)
-    # 绘制折线图
-    plt.plot(last_hundred_days_df['TRADE_DT'],
-             last_hundred_days_df['S_DQ_CLOSE'], color='royalblue', label='stock price', alpha=0.8)
     # 将last_hundred_days_df['TRADE_DT']转换为与peaks中日期格式相同的字符串格式
     last_hundred_days_dates = last_hundred_days_df['TRADE_DT'].dt.strftime(
         '%Y-%m-%d')
@@ -91,6 +89,11 @@ def draw_horizontal_area(df, result, peaks, valleys, high_points, low_points, n_
         '%Y-%m-%d') in last_hundred_days_dates.values]
     last_hundred_days_low = [low_point for low_point in low_points if low_point['low_date'].strftime(
         '%Y-%m-%d') in last_hundred_days_dates.values]
+
+    plt.rcParams['figure.figsize'] = [10, 5]
+    # 绘制折线图
+    plt.plot(last_hundred_days_df['TRADE_DT'],
+             last_hundred_days_df['S_DQ_CLOSE'], color='royalblue', label='stock price', alpha=0.8)
 
     # 标记峰值和谷值
     for peak in last_hundred_days_peaks:
@@ -141,4 +144,10 @@ def draw_horizontal_area(df, result, peaks, valleys, high_points, low_points, n_
                 break
 
     plt.legend(handles=new_handles, labels=new_labels)
-    plt.show()
+    if show_plot:
+        plt.show()
+    if save_plot:
+        # save the plt
+        plot_name = stock_name + '_horizontal_area.png'
+        plt.savefig(plot_name)
+    plt.close()
