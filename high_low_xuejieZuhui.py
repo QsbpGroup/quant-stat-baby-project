@@ -27,7 +27,7 @@ def dic_init():
         os.makedirs(results_directory)
 
 
-def find_high_low_xuejieZuhui(df, filename='000001.SZ.csv', n_days=200, draw=True):
+def find_high_low_xuejieZuhui(df, filename='000001.SZ.csv', save_data = True, draw_n_days=200, draw=True):
         
     # 初始化变量
     peaks = []
@@ -96,15 +96,17 @@ def find_high_low_xuejieZuhui(df, filename='000001.SZ.csv', n_days=200, draw=Tru
         high_date = peaks[high_index]['date']
         high_points.append({'high_date': high_date, 'high_price': high_price})
 
-    # 将结果保存到CSV文件（指定编码为UTF-8）
-    output_filename = os.path.splitext(filename)[0] + '_result.csv'
-    output_file_path = os.path.join(results_directory, output_filename)
-    result_df = pd.DataFrame(result_data)
-    result_df.to_csv(output_file_path, index=False, encoding='utf-8-sig')
+    if save_data:
+        # 将结果保存到CSV文件（指定编码为UTF-8）
+        dic_init()
+        output_filename = os.path.splitext(filename)[0] + '_result.csv'
+        output_file_path = os.path.join(results_directory, output_filename)
+        result_df = pd.DataFrame(result_data)
+        result_df.to_csv(output_file_path, index=False, encoding='utf-8-sig')
     
     if(draw):
         # 获取最后100天的数据
-        last_hundred_days_df = df.tail(n_days)
+        last_hundred_days_df = df.tail(draw_n_days)
         # 绘制折线图
         plt.plot(last_hundred_days_df['TRADE_DT'],
                 last_hundred_days_df['S_DQ_CLOSE'], color='royalblue', label='stock price', alpha=0.8)
@@ -161,8 +163,6 @@ def find_high_low_xuejieZuhui(df, filename='000001.SZ.csv', n_days=200, draw=Tru
 
         plt.legend(handles=new_handles, labels=new_labels)
         plt.show()
+        plt.close()
         
     return (peaks, valleys, high_points, low_points)
-# note below todos.
-# TODO: 暂存分析数据，自定义画图天数n，画出最近n天的图
-# TODO：找到趋势中部的局部横盘；联系学妹看他的进度
