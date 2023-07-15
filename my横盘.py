@@ -15,18 +15,18 @@ for filename in os.listdir():
     peaks, valleys, high_points, low_points = find_high_low_xuejieZuhui(
         df, filename, save_data=False, draw_n_days=200, draw=False)
 
-    for max_len_of_window in (20, 30, 40, 50, 60, 70):
-        min_len_of_window = 12
-        gamma = 0.3  # 最大变化率
-        view_coe = 0.8  # 视野·系数
+    for max_len_of_window in (50, 100):
+        for min_len_of_window in (30,):
+            gamma = 0.3  # 最大变化率
+            view_coe = 0.8  # 视野·系数
 
-        result = find_horizontal_area(df, high_points, low_points, max_len_of_window,
-                                    min_len_of_window, gamma, view_coe, ignore_hl=True)
-        temp_n, temp_mean = len(result), result['interval'].mean()
-        temp_mean = round(temp_mean, 2)
-        results.append([max_len_of_window, temp_n, temp_mean])
-        # print(results)
-        pd.DataFrame(results).to_csv('results.csv', index=False)
+            result = find_horizontal_area(df, high_points, low_points, max_len_of_window,
+                                        min_len_of_window, gamma, view_coe, ignore_hl=True)
+            temp_n, temp_mean = len(result), result['interval'].mean()
+            temp_mean = round(temp_mean, 2)
+            results.append([min_len_of_window, max_len_of_window, temp_n, temp_mean])
+            # print(results)
+            pd.DataFrame(results).to_csv('results_long.csv', index=False)
 
     # n_days = 300
     # draw_horizontal_area(df, result, peaks, valleys, high_points,
