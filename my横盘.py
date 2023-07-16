@@ -1,4 +1,4 @@
-from high_low_xuejieZuhui import *
+from high_low_xuejie_zuhui import *
 from horizontal_area import *
 import os
 from test import *
