@@ -12,7 +12,7 @@ for filename in os.listdir():
     # filename = '000001.SZ.csv'
     os.chdir('/Users/kai/Desktop/qs/data_csv_distinct_0606/_horizontal_area_pics')
     df = df_init(filename)
-    peaks, valleys, high_points, low_points = find_high_low_xuejieZuhui(
+    high_points, low_points = find_high_low(
         df, filename, save_data=False, draw_n_days=200, draw=False)
 
     for max_len_of_window in (100,):
