@@ -33,7 +33,7 @@ for filename in os.listdir():
                 pd.DataFrame(results).to_csv('results_long.csv', index=False)
 
     # n_days = 300
-    # draw_horizontal_area(df, result, peaks, valleys, high_points,
+    # draw_horizontal_area(df, result, high_points,
     #                     low_points, filename, n_days, print_result=False, show_plot=False)
     os.chdir('/Users/kai/Desktop/qs/data_csv_distinct_0606')
     counter += 1
