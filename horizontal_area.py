@@ -1,3 +1,5 @@
+import numpy as np
+from scipy.fftpack import fft
 from tqdm import tqdm
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -15,7 +17,7 @@ def find_horizontal_area(df, high_points, low_points, max_len_of_window=30, min_
         max_len_of_window, min_len_of_window, gamma))
 
     result = pd.DataFrame(columns=[
-                          'start_date', 'end_date', 'start_price', 'end_price', 'price_change', 'interval'])
+                          'start_date', 'end_date', 'price_change', 'interval', 'high_freq_ratio'])
 
     # 循环遍历每个高点和低点，确定横盘区间的起止日期，起始价格和结束价格
     index = 0
@@ -40,34 +42,40 @@ def find_horizontal_area(df, high_points, low_points, max_len_of_window=30, min_
                 timedelta(days=max_len_of_window*view_coe)
             end_date_window = end_date + \
                 timedelta(days=max_len_of_window*view_coe)
-            max_change = df[(df['TRADE_DT'] >= start_date_window) & (df['TRADE_DT'] <= end_date_window)]['S_DQ_CLOSE'].max(
-            ) - df[(df['TRADE_DT'] >= start_date_window) & (df['TRADE_DT'] <= end_date_window)]['S_DQ_CLOSE'].min()
+            temp_data = df[(df['TRADE_DT'] >= start_date_window) & (
+                df['TRADE_DT'] <= end_date_window)]
+            max_change = temp_data['S_DQ_CLOSE'].max(
+            ) - temp_data['S_DQ_CLOSE'].min()
             # max_change_in_hor_area = df[(df['TRADE_DT'] >= start_date) & (
             #     df['TRADE_DT'] <= end_date)]['S_DQ_CLOSE'].max() - df[(df['TRADE_DT'] >= start_date) & (df['TRADE_DT'] <= end_date)]['S_DQ_CLOSE'].min()
 
             # 计算横盘区间的价格变化和区间长度
             # price_change 是横盘区间内所有价格中最大价格减去最小价格，你需要遍历所有价格
-            high_price = df[(df['TRADE_DT'] >= start_date) & (
-                df['TRADE_DT'] <= end_date)]['S_DQ_CLOSE'].max()
-            low_price = df[(df['TRADE_DT'] >= start_date) & (
-                df['TRADE_DT'] <= end_date)]['S_DQ_CLOSE'].min()
+            temp_data = df[(df['TRADE_DT'] >= start_date) & (
+                df['TRADE_DT'] <= end_date)]
+            price_change = temp_data['S_DQ_CLOSE'].max(
+            ) - temp_data['S_DQ_CLOSE'].min()
             # start_price = df[(df['TRADE_DT'] == start_date)
             #                  ]['S_DQ_CLOSE'].values[0]
             # close_price = df[(df['TRADE_DT'] == end_date)
             #                  ]['S_DQ_CLOSE'].values[0]
-            price_change = high_price - low_price
             # price_change_in_hor_area = abs(close_price - start_price)
             interval = (end_date - start_date).days
 
             # 判断区间是否为横盘，如果是则将信息添加到 DataFrame 中
             # if (price_change <= gamma * max_change) & (price_change_in_hor_area <= 2 * gamma * max_change_in_hor_area) & (price_change_in_hor_area >= gamma * max_change_in_hor_area):
             if (price_change <= gamma * max_change):
+                
+                data_fft = fft(temp_data['S_DQ_CLOSE'].values)
+                energy = (data_fft * np.conj(data_fft)).real
+                high_freq_ratio = np.sum(energy[3:]) / np.sum(energy)
+                
                 result = result.append({'start_date': start_date,
                                         'end_date': end_date,
-                                        'high_price': high_price,
-                                        'low_price': low_price,
                                         'price_change': price_change,
-                                        'interval': interval}, ignore_index=True)
+                                        'interval': interval,
+                                        'high_freq_ratio': high_freq_ratio}, ignore_index=True)
+                
                 index = i+j
     # print('len of result:', len(result))
     # print('mean of interval:', result['interval'].mean())
@@ -78,7 +86,32 @@ def find_horizontal_area(df, high_points, low_points, max_len_of_window=30, min_
         plt.show()
         plt.close()
     result = result.drop_duplicates(subset=['start_date'])
-    return result
+    
+    # 把return按照return['interval']均分为三组
+    mmin = result['interval'].min()
+    mmax = result['interval'].max()
+    mm1 = mmin + (mmax - mmin) / 3
+    mm2 = mmin + (mmax - mmin) / 3 * 2
+    result_1 = []
+    result_2 = []
+    result_3 = []
+    for i in range(len(result)):
+        if result.iloc[i]['interval'] <= mm1:
+            result_1.append(result.iloc[i])
+        elif result.iloc[i]['interval'] <= mm2:
+            result_2.append(result.iloc[i])
+        else:
+            result_3.append(result.iloc[i])
+    print(len(result_1), len(result_2), len(result_3))
+    result_1 = pd.DataFrame(result_1)
+    result_2 = pd.DataFrame(result_2)
+    result_3 = pd.DataFrame(result_3)
+    result_1 = result_1[result_1['high_freq_ratio'] < np.percentile(result_1['high_freq_ratio'], 55)]
+    result_2 = result_2[result_2['high_freq_ratio'] < np.percentile(result_2['high_freq_ratio'], 55)]
+    result_3 = result_3[result_3['high_freq_ratio'] < np.percentile(result_3['high_freq_ratio'], 55)]
+    result_tt = pd.concat([result_1, result_2, result_3])
+    
+    return result_tt
 
 
 def find_ha_near_hl(df, high_points, low_points, draw_hist=True):
