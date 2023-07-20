@@ -6,11 +6,18 @@ import matplotlib.pyplot as plt
 from datetime import timedelta
 
 
-def find_horizontal_area(df, high_points, low_points, max_len_of_window=30, min_len_of_window=10, gamma=0.4, view_coe=1, ignore_hl=True, draw_hist=False):
+def find_horizontal_area(df, high_points, low_points, max_len_of_window=30, min_len_of_window=10, gamma=0.4, view_coe=1, fft_percentile=0.55, ignore_hl=True, draw_hist=False):
     """
-    此函数的输出为一个dataframe，包含以下列：start_date, end_date, start_price, end_price, price_change, interval
-    横盘的定义是：此段区间内价格变化不超过滑动窗口内最大价格变化的40%；滑动窗口的定义是从start_date向前数10天，到end_date向后数10天
-    此函数的输出是一支股票所有的横盘区域
+    该函数用于寻找横盘区间，返回一个DataFrame，包含横盘区间的起止日期，区间长度，高频占比
+    ---
+    Parameters
+    ----------
+    :param df: 股票数据，DataFrame格式，包含日期和收盘价两列
+    :param high_points: 高点列表，列表中每个元素为一个字典，包含高点日期和价格
+    :param low_points: 低点列表，列表中每个元素为一个字典，包含低点日期和价格
+    :param gamma: 横盘区间的价格变化与滑动窗口内价格变化的比值
+    :param view_coe: 滑动窗口长度的系数，用于计算滑动窗口的起止日期
+    :return: 横盘区间的起止日期，区间长度，高频占比
     """
 
     print('当前参数组合: max_len_of_window = {}, min_len_of_window = {}, gamma = {}'.format(
@@ -102,13 +109,13 @@ def find_horizontal_area(df, high_points, low_points, max_len_of_window=30, min_
             result_2.append(result.iloc[i])
         else:
             result_3.append(result.iloc[i])
-    print(len(result_1), len(result_2), len(result_3))
     result_1 = pd.DataFrame(result_1)
     result_2 = pd.DataFrame(result_2)
     result_3 = pd.DataFrame(result_3)
-    result_1 = result_1[result_1['high_freq_ratio'] < np.percentile(result_1['high_freq_ratio'], 55)]
-    result_2 = result_2[result_2['high_freq_ratio'] < np.percentile(result_2['high_freq_ratio'], 55)]
-    result_3 = result_3[result_3['high_freq_ratio'] < np.percentile(result_3['high_freq_ratio'], 55)]
+    # 去除高频占比过高的横盘，这通常是曲线过于平滑导致的
+    result_1 = result_1[result_1['high_freq_ratio'] < np.percentile(result_1['high_freq_ratio'], fft_percentile)]
+    result_2 = result_2[result_2['high_freq_ratio'] < np.percentile(result_2['high_freq_ratio'], fft_percentile)]
+    result_3 = result_3[result_3['high_freq_ratio'] < np.percentile(result_3['high_freq_ratio'], fft_percentile)]
     result_tt = pd.concat([result_1, result_2, result_3])
     
     return result_tt
