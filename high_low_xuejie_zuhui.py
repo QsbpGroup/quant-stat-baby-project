@@ -79,6 +79,18 @@ def find_high_low(df, filename='000001.SZ.csv', save_data=True, draw_n_days=200,
             df_temp = df_temp.head(1)
             df_low_points = pd.concat([df_low_points, df_temp])
 
+    #high曲线的谷值，找低点
+    highs_valleys = [] 
+    for i in range(2,len(df_high_points)-1):
+        if df_high_points.iloc[i]['S_DQ_CLOSE'] < df_high_points.iloc[i-1]['S_DQ_CLOSE'] and df_high_points.iloc[i]['S_DQ_CLOSE'] < df_high_points.iloc[i+1]['S_DQ_CLOSE']:
+            highs_valleys.append({'date': df_high_points.iloc[i]['TRADE_DT'], 'price': df_high_points.iloc[i]['S_DQ_CLOSE']})
+
+    #low曲线的峰值，找高点
+    lows_peaks = [] 
+    for i in range(2,len(df_low_points)-1):
+        if df_low_points.iloc[i]['S_DQ_CLOSE'] > df_low_points.iloc[i-1]['S_DQ_CLOSE'] and df_low_points.iloc[i]['S_DQ_CLOSE'] > df_low_points.iloc[i+1]['S_DQ_CLOSE']:
+            lows_peaks.append({'date': df_low_points.iloc[i]['TRADE_DT'], 'price': df_low_points.iloc[i]['S_DQ_CLOSE']})
+
     # 初始化一个列表：high_points，其中每个元素是一个字典，包含两个键值对：high_date和high_price
     high_points = []
     for index, row in df_high_points.iterrows():
