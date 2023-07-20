@@ -42,6 +42,8 @@ def find_horizontal_area(df, high_points, low_points, max_len_of_window=30, min_
                 timedelta(days=max_len_of_window*view_coe)
             max_change = df[(df['TRADE_DT'] >= start_date_window) & (df['TRADE_DT'] <= end_date_window)]['S_DQ_CLOSE'].max(
             ) - df[(df['TRADE_DT'] >= start_date_window) & (df['TRADE_DT'] <= end_date_window)]['S_DQ_CLOSE'].min()
+            # max_change_in_hor_area = df[(df['TRADE_DT'] >= start_date) & (
+            #     df['TRADE_DT'] <= end_date)]['S_DQ_CLOSE'].max() - df[(df['TRADE_DT'] >= start_date) & (df['TRADE_DT'] <= end_date)]['S_DQ_CLOSE'].min()
 
             # 计算横盘区间的价格变化和区间长度
             # price_change 是横盘区间内所有价格中最大价格减去最小价格，你需要遍历所有价格
@@ -49,11 +51,17 @@ def find_horizontal_area(df, high_points, low_points, max_len_of_window=30, min_
                 df['TRADE_DT'] <= end_date)]['S_DQ_CLOSE'].max()
             low_price = df[(df['TRADE_DT'] >= start_date) & (
                 df['TRADE_DT'] <= end_date)]['S_DQ_CLOSE'].min()
+            # start_price = df[(df['TRADE_DT'] == start_date)
+            #                  ]['S_DQ_CLOSE'].values[0]
+            # close_price = df[(df['TRADE_DT'] == end_date)
+            #                  ]['S_DQ_CLOSE'].values[0]
             price_change = high_price - low_price
+            # price_change_in_hor_area = abs(close_price - start_price)
             interval = (end_date - start_date).days
 
             # 判断区间是否为横盘，如果是则将信息添加到 DataFrame 中
-            if abs(price_change) <= gamma * max_change:
+            # if (price_change <= gamma * max_change) & (price_change_in_hor_area <= 2 * gamma * max_change_in_hor_area) & (price_change_in_hor_area >= gamma * max_change_in_hor_area):
+            if (price_change <= gamma * max_change):
                 result = result.append({'start_date': start_date,
                                         'end_date': end_date,
                                         'high_price': high_price,
@@ -69,6 +77,7 @@ def find_horizontal_area(df, high_points, low_points, max_len_of_window=30, min_
         plt.hist(result['interval'], bins=100)
         plt.show()
         plt.close()
+    result = result.drop_duplicates(subset=['start_date'])
     return result
 
 

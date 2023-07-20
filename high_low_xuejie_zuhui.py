@@ -288,10 +288,10 @@ def find_high_low_old(df, filename='000001.SZ.csv', save_data=True, draw_n_days=
         # 标记高点和低点
         for high_point in last_hundred_days_high:
             plt.scatter(high_point['high_date'], high_point['high_price'],
-                        color='red', marker='*', label='high', s=80)
+                        color='red', marker='*', label='high', s=80, alpha=0.8)
         for low_point in last_hundred_days_low:
             plt.scatter(low_point['low_date'], low_point['low_price'],
-                        color='green', marker='*', label='low', s=80)
+                        color='green', marker='*', label='low', s=80, alpha=0.8)
 
         # 设置图形标题和标签
         plt.title('Stock Price')
@@ -303,8 +303,8 @@ def find_high_low_old(df, filename='000001.SZ.csv', save_data=True, draw_n_days=
         # 去除重复的标签
         unique_labels = set(labels)
 
-        # 创建新的标签和句柄列表, 其中元素按照'stock price', 'Peak', 'Valley', 'high', 'low'的顺序排列
-        new_labels = ['stock price', 'Peak', 'Valley', 'high', 'low']
+        # 创建新的标签和句柄列表, 其中元素按照'stock price', 'high', 'low'的顺序排列
+        new_labels = ['stock price', 'high', 'low']
         new_handles = []
         for new_label in new_labels:
             for i in range(len(labels)):
