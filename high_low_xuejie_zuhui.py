@@ -166,8 +166,8 @@ def find_high_low(df, filename='000001.SZ.csv', save_data=True, draw_n_days=200,
     return (high_points, low_points)
 
 
-def find_high_low_old(df, filename='000001.SZ.csv', save_data = True, draw_n_days=200, draw=True):
-        
+def find_high_low_old(df, filename='000001.SZ.csv', save_data=True, draw_n_days=200, draw=True):
+
     # 初始化变量
     peaks = []
     valleys = []
@@ -175,10 +175,11 @@ def find_high_low_old(df, filename='000001.SZ.csv', save_data = True, draw_n_day
     # 找到峰值和谷值
     for i in range(1, len(df) - 1):
         if df['S_DQ_CLOSE'][i] > df['S_DQ_CLOSE'][i-1] and df['S_DQ_CLOSE'][i] > df['S_DQ_CLOSE'][i+1]:
-            peaks.append({'date': df['TRADE_DT'][i], 'price': df['S_DQ_CLOSE'][i]})
+            peaks.append({'date': df['TRADE_DT'][i],
+                         'price': df['S_DQ_CLOSE'][i]})
         elif df['S_DQ_CLOSE'][i] < df['S_DQ_CLOSE'][i-1] and df['S_DQ_CLOSE'][i] < df['S_DQ_CLOSE'][i+1]:
             valleys.append({'date': df['TRADE_DT'][i],
-                        'price': df['S_DQ_CLOSE'][i]})
+                            'price': df['S_DQ_CLOSE'][i]})
 
     # 计算波动周期的时间间隔和涨幅
     result_data = []
@@ -242,13 +243,13 @@ def find_high_low_old(df, filename='000001.SZ.csv', save_data = True, draw_n_day
         output_file_path = os.path.join(results_directory, output_filename)
         result_df = pd.DataFrame(result_data)
         result_df.to_csv(output_file_path, index=False, encoding='utf-8-sig')
-    
+
     if(draw):
         # 获取最后100天的数据
         last_hundred_days_df = df.tail(draw_n_days)
         # 绘制折线图
         plt.plot(last_hundred_days_df['TRADE_DT'],
-                last_hundred_days_df['S_DQ_CLOSE'], color='royalblue', label='stock price', alpha=0.8)
+                 last_hundred_days_df['S_DQ_CLOSE'], color='royalblue', label='stock price', alpha=0.8)
         # 将last_hundred_days_df['TRADE_DT']转换为与peaks中日期格式相同的字符串格式
         last_hundred_days_dates = last_hundred_days_df['TRADE_DT'].dt.strftime(
             '%Y-%m-%d')
@@ -263,7 +264,6 @@ def find_high_low_old(df, filename='000001.SZ.csv', save_data = True, draw_n_day
             '%Y-%m-%d') in last_hundred_days_dates.values]
         last_hundred_days_low = [low_point for low_point in low_points if low_point['low_date'].strftime(
             '%Y-%m-%d') in last_hundred_days_dates.values]
-
 
         # 标记峰值和谷值
         for peak in last_hundred_days_peaks:
@@ -303,5 +303,5 @@ def find_high_low_old(df, filename='000001.SZ.csv', save_data = True, draw_n_day
         plt.legend(handles=new_handles, labels=new_labels)
         plt.show()
         plt.close()
-        
+
     return (peaks, valleys, high_points, low_points)

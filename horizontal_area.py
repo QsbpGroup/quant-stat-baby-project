@@ -72,8 +72,8 @@ def find_horizontal_area(df, high_points, low_points, max_len_of_window=30, min_
     return result
 
 
-def find_ha_near_hl(df, high_points, low_points, draw_hist = True):
-    
+def find_ha_near_hl(df, high_points, low_points, draw_hist=True):
+
     high_points_df = pd.DataFrame(high_points)
     high_points_df.insert(loc=2, column='state', value=1)
     low_points_df = pd.DataFrame(low_points)
@@ -81,35 +81,46 @@ def find_ha_near_hl(df, high_points, low_points, draw_hist = True):
     high_points_df.columns = ['date', 'price', 'state']
     low_points_df.columns = ['date', 'price', 'state']
     points_df = pd.concat([high_points_df, low_points_df])
-    points_df.sort_values(by='date' , inplace=True, ascending=True)
+    points_df.sort_values(by='date', inplace=True, ascending=True)
     points_df = points_df.reset_index(drop=True)
-    #提取横盘出现的位置
+    # 提取横盘出现的位置
     sideways = []
-    for i in range(0,len(points_df)-2):
+    for i in range(0, len(points_df)-2):
         if points_df['state'][i] == points_df['state'][i+1]:
-            sideways.append({'index':i, 'state':points_df['state'][i], 'date':points_df['date'][i], 'price':points_df['price'][i]})
+            sideways.append(
+                {'index': i, 'state': points_df['state'][i], 'date': points_df['date'][i], 'price': points_df['price'][i]})
     sideways = pd.DataFrame(sideways)
-    #寻找横盘
+    # 寻找横盘
     sideways_all = []
     if len(sideways) == 0:
         raise KeyError('No sideways in this stock.')
     for i in range(len(sideways)):
         if sideways['state'][i] == 1:
-            end_date = df[(df['TRADE_DT'] >= sideways['date'][i]) & (df['S_DQ_CLOSE'] > sideways['price'][i])]['TRADE_DT'].min() - timedelta(days=1)
+            end_date = df[(df['TRADE_DT'] >= sideways['date'][i]) & (
+                df['S_DQ_CLOSE'] > sideways['price'][i])]['TRADE_DT'].min() - timedelta(days=1)
             start_date = sideways['date'][i]
-            high_ma_price = df[(df['TRADE_DT'] >= start_date) & (df['TRADE_DT'] <= end_date)]['S_DQ_CLOSE'].max()
-            low_ma_price = df[(df['TRADE_DT'] >= start_date) & (df['TRADE_DT'] <= end_date)]['S_DQ_CLOSE'].min()
-            start_date = df[(df['TRADE_DT'] <= sideways['date'][i]) & ((df['S_DQ_CLOSE'] > high_ma_price) | (df['S_DQ_CLOSE'] < low_ma_price))]['TRADE_DT'].max() + timedelta(days=1)
+            high_ma_price = df[(df['TRADE_DT'] >= start_date) & (
+                df['TRADE_DT'] <= end_date)]['S_DQ_CLOSE'].max()
+            low_ma_price = df[(df['TRADE_DT'] >= start_date) & (
+                df['TRADE_DT'] <= end_date)]['S_DQ_CLOSE'].min()
+            start_date = df[(df['TRADE_DT'] <= sideways['date'][i]) & ((df['S_DQ_CLOSE'] > high_ma_price) | (
+                df['S_DQ_CLOSE'] < low_ma_price))]['TRADE_DT'].max() + timedelta(days=1)
             interval = (end_date - start_date).days
-            sideways_all.append({'start_date':start_date, 'end_date':end_date, 'interval':interval, 'state':sideways['state'][i]})
+            sideways_all.append({'start_date': start_date, 'end_date': end_date,
+                                'interval': interval, 'state': sideways['state'][i]})
         else:
-            end_date = df[(df['TRADE_DT'] >= sideways['date'][i]) & (df['S_DQ_CLOSE'] < sideways['price'][i])]['TRADE_DT'].min() - timedelta(days=1)
+            end_date = df[(df['TRADE_DT'] >= sideways['date'][i]) & (
+                df['S_DQ_CLOSE'] < sideways['price'][i])]['TRADE_DT'].min() - timedelta(days=1)
             start_date = sideways['date'][i]
-            high_ma_price = df[(df['TRADE_DT'] >= start_date) & (df['TRADE_DT'] <= end_date)]['S_DQ_CLOSE'].max()
-            low_ma_price = df[(df['TRADE_DT'] >= start_date) & (df['TRADE_DT'] <= end_date)]['S_DQ_CLOSE'].min()
-            start_date = df[(df['TRADE_DT'] <= sideways['date'][i]) & ((df['S_DQ_CLOSE'] > high_ma_price) | (df['S_DQ_CLOSE'] < low_ma_price))]['TRADE_DT'].max() + timedelta(days=1)
+            high_ma_price = df[(df['TRADE_DT'] >= start_date) & (
+                df['TRADE_DT'] <= end_date)]['S_DQ_CLOSE'].max()
+            low_ma_price = df[(df['TRADE_DT'] >= start_date) & (
+                df['TRADE_DT'] <= end_date)]['S_DQ_CLOSE'].min()
+            start_date = df[(df['TRADE_DT'] <= sideways['date'][i]) & ((df['S_DQ_CLOSE'] > high_ma_price) | (
+                df['S_DQ_CLOSE'] < low_ma_price))]['TRADE_DT'].max() + timedelta(days=1)
             interval = (end_date - start_date).days
-            sideways_all.append({'start_date':start_date, 'end_date':end_date, 'interval':interval, 'state':sideways['state'][i]})
+            sideways_all.append({'start_date': start_date, 'end_date': end_date,
+                                'interval': interval, 'state': sideways['state'][i]})
     result = pd.DataFrame(sideways_all)
 
     if draw_hist:
