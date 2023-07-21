@@ -54,7 +54,7 @@ def find_horizontal_area(df, high_points, low_points, max_len_of_window=30, min_
                     continue
                 if any([low['low_date'] >= start_date and low['low_date'] <= end_date for low in low_points]):
                     continue
-            
+
             if must_hl:
                 # !参数仅供find_ha_near_hl_median调用
                 point_date = high_points['date']
@@ -209,21 +209,69 @@ def _single_ha(df, current_point, threshold):
     '''
     以current_point为中心，找到df内变化幅度不超过threshold的区间
     '''
-    df_1 = df[df['TRADE_DT'] < current_point['date']]
-    df_2 = df[df['TRADE_DT'] > current_point['date']]
-    start_date = df_1[(df_1['S_DQ_CLOSE'] > current_point['price'] * (1-threshold)) & (
-        df_1['S_DQ_CLOSE'] < current_point['price'] * (1+threshold))]['TRADE_DT'].min() + timedelta(days=1)
-    end_date = df_2[(df_2['S_DQ_CLOSE'] > current_point['price'] * (1-threshold)) & (
-        df_2['S_DQ_CLOSE'] < current_point['price'] * (1+threshold))]['TRADE_DT'].max() - timedelta(days=1)
+    df_1 = df[df['TRADE_DT'] <= current_point['date']]
+    df_2 = df[df['TRADE_DT'] >= current_point['date']]
+    flag_1 = False
+    flag_2 = False
+    # 筛选掉df_1 df_2中仅用一天价格变化幅度超过threshold的数据
+    if (df_1.tail(1)['S_DQ_CLOSE'].values[0] < current_point['price'] * (1-threshold)) or (
+        df_1.tail(1)['S_DQ_CLOSE'].values[0] > current_point['price'] * (1+threshold)):
+        start_date = df_1['TRADE_DT'].min()
+        flag_1 = True
+    if (df_2.head(1)['S_DQ_CLOSE'].values[0] < current_point['price'] * (1-threshold)) or (
+        df_2.head(1)['S_DQ_CLOSE'].values[0] > current_point['price'] * (1+threshold)):
+        end_date = df_2['TRADE_DT'].max()
+        flag_2 = True
+    
+    if not flag_1:
+        start_date = df_1[(df_1['S_DQ_CLOSE'] > current_point['price'] * (1-threshold)) & (
+            df_1['S_DQ_CLOSE'] < current_point['price'] * (1+threshold))]['TRADE_DT'].min() + timedelta(days=1)
+    if not flag_2:
+        end_date = df_2[(df_2['S_DQ_CLOSE'] > current_point['price'] * (1-threshold)) & (
+            df_2['S_DQ_CLOSE'] < current_point['price'] * (1+threshold))]['TRADE_DT'].max() - timedelta(days=1)
+    if pd.isna(start_date):
+        start_date = df_1['TRADE_DT'].min()
+    if pd.isna(end_date):
+        end_date = df_2['TRADE_DT'].max()
     interval = (end_date - start_date).days
     median_price = df[(df['TRADE_DT'] >= start_date) & (
         df['TRADE_DT'] <= end_date)]['S_DQ_CLOSE'].median()
     result = pd.DataFrame(
         {'start_date': start_date, 'end_date': end_date, 'interval': [interval], 'median_price': median_price})
-    
     return result
 
-def find_ha_near_hl_median(df, high_points, low_points, threshold=0.05, draw_hist=True):
+
+def find_ha_near_hl_median(df, high_points, low_points, threshold=0.05):
+    # 创建高低点的集合
+    hp = pd.DataFrame(high_points)
+    hp['state'] = 1
+    hp.columns = ['date', 'price', 'state']
+    lp = pd.DataFrame(low_points)
+    lp['state'] = -1
+    lp.columns = ['date', 'price', 'state']
+    hl_df = pd.concat([hp, lp])
+    hl_df.sort_values(by='date', inplace=True, ascending=True)
+
+    result = pd.DataFrame(
+        columns=['start_date', 'end_date', 'interval', 'median_price'])
+    for i in tqdm(range(1, len(hl_df)-1)):
+        last_point = hl_df.iloc[i-1]
+        current_point = hl_df.iloc[i]
+        next_point = hl_df.iloc[i+1]
+        # 定义df_temp为last_point和next_point之间中间50%的数据
+        start_d = last_point['date'] + timedelta(
+            days=(current_point['date'] - last_point['date']).days * 0.5)
+        end_d = current_point['date'] + timedelta(
+            days=(next_point['date'] - current_point['date']).days * 0.5)
+        df_temp = df[(df['TRADE_DT'] >= start_d) & (df['TRADE_DT'] <= end_d)]
+        result_temp = _single_ha(df_temp, current_point, threshold)
+        if not result_temp.empty:
+            result = pd.concat([result, result_temp])
+
+    return result
+
+
+def find_ha_near_hl_median_bad(df, high_points, low_points):
 
     # 创建高低点的集合
     hp = pd.DataFrame(high_points)
@@ -243,12 +291,14 @@ def find_ha_near_hl_median(df, high_points, low_points, threshold=0.05, draw_his
         next_point = hl_df.iloc[i+1]
         df_temp = df[(df['TRADE_DT'] >= last_point['date']) &
                      (df['TRADE_DT'] <= next_point['date'])]
-        result_temp = find_horizontal_area(df_temp, current_point, [], must_hl=True)
+        result_temp = find_horizontal_area(
+            df_temp, current_point, [], must_hl=True)
         if not result_temp.empty:
             result_temp = result_temp.iloc[len(result_temp)//2]
             result_temp = pd.DataFrame(result_temp).T
             result_temp['median_price'] = 0
-            result_temp = result_temp[['start_date', 'end_date', 'interval', 'median_price']]
+            result_temp = result_temp[['start_date',
+                                       'end_date', 'interval', 'median_price']]
             # 求result_temp起止日期间价格的中位数
             mm = df[(df['TRADE_DT'] >= result_temp['start_date'].values[0]) & (
                 df['TRADE_DT'] <= result_temp['end_date'].values[0])]['S_DQ_CLOSE'].median()
