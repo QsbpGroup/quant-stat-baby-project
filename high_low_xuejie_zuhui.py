@@ -129,6 +129,7 @@ def find_high_low(df, filename='000001.SZ.csv', save_data=True, draw_n_days=200,
         result_df.to_csv(output_file_path, index=False, encoding='utf-8-sig')
 
     if(draw):
+        plt.rcParams['figure.figsize'] = [10, 5]
         # 获取最后100天的数据
         last_hundred_days_df = df.tail(draw_n_days)
         # 绘制折线图
@@ -178,7 +179,7 @@ def find_high_low(df, filename='000001.SZ.csv', save_data=True, draw_n_days=200,
     return (high_points, low_points)
 
 
-def find_high_low_old(df, filename='000001.SZ.csv', save_data=True, draw_n_days=200, draw=True):
+def find_high_low_old(df, filename='000001.SZ.csv', save_data=True, draw_n_days=200, draw=True, draw_peaks_valleys=True):
 
     # 初始化变量
     peaks = []
@@ -186,12 +187,15 @@ def find_high_low_old(df, filename='000001.SZ.csv', save_data=True, draw_n_days=
 
     # 找到峰值和谷值
     for i in range(1, len(df) - 1):
-        if df['S_DQ_CLOSE'][i] > df['S_DQ_CLOSE'][i-1] and df['S_DQ_CLOSE'][i] > df['S_DQ_CLOSE'][i+1]:
+        temp_price_i = df['S_DQ_CLOSE'][i]
+        temp_price_i_1 = df['S_DQ_CLOSE'][i-1]
+        temp_price_i_11 = df['S_DQ_CLOSE'][i+1]
+        if temp_price_i > temp_price_i_1 and temp_price_i > temp_price_i_11:
             peaks.append({'date': df['TRADE_DT'][i],
-                         'price': df['S_DQ_CLOSE'][i]})
-        elif df['S_DQ_CLOSE'][i] < df['S_DQ_CLOSE'][i-1] and df['S_DQ_CLOSE'][i] < df['S_DQ_CLOSE'][i+1]:
+                         'price': temp_price_i})
+        elif temp_price_i < temp_price_i_1 and temp_price_i < temp_price_i_11:
             valleys.append({'date': df['TRADE_DT'][i],
-                            'price': df['S_DQ_CLOSE'][i]})
+                            'price': temp_price_i})
 
     # 计算波动周期的时间间隔和涨幅
     result_data = []
@@ -257,6 +261,7 @@ def find_high_low_old(df, filename='000001.SZ.csv', save_data=True, draw_n_days=
         result_df.to_csv(output_file_path, index=False, encoding='utf-8-sig')
 
     if(draw):
+        plt.rcParams['figure.figsize'] = [10, 5]
         # 获取最后100天的数据
         last_hundred_days_df = df.tail(draw_n_days)
         # 绘制折线图
@@ -277,21 +282,22 @@ def find_high_low_old(df, filename='000001.SZ.csv', save_data=True, draw_n_days=
         last_hundred_days_low = [low_point for low_point in low_points if low_point['low_date'].strftime(
             '%Y-%m-%d') in last_hundred_days_dates.values]
 
-        # 标记峰值和谷值
-        for peak in last_hundred_days_peaks:
-            plt.scatter(peak['date'], peak['price'], color='red',
-                        marker='^', label='Peak', alpha=0.3)
-        for valley in last_hundred_days_valleys:
-            plt.scatter(valley['date'], valley['price'],
-                        color='green', marker='v', label='Valley', alpha=0.3)
+        if draw_peaks_valleys:
+            # 标记峰值和谷值
+            for peak in last_hundred_days_peaks:
+                plt.scatter(peak['date'], peak['price'], color='red',
+                            marker='^', label='Peak', alpha=0.2)
+            for valley in last_hundred_days_valleys:
+                plt.scatter(valley['date'], valley['price'],
+                            color='green', marker='v', label='Valley', alpha=0.2)
 
         # 标记高点和低点
         for high_point in last_hundred_days_high:
             plt.scatter(high_point['high_date'], high_point['high_price'],
-                        color='red', marker='*', label='high', s=80, alpha=0.8)
+                        color='red', marker='*', label='high', s=80)
         for low_point in last_hundred_days_low:
             plt.scatter(low_point['low_date'], low_point['low_price'],
-                        color='green', marker='*', label='low', s=80, alpha=0.8)
+                        color='green', marker='*', label='low', s=80)
 
         # 设置图形标题和标签
         plt.title('Stock Price')
@@ -316,4 +322,4 @@ def find_high_low_old(df, filename='000001.SZ.csv', save_data=True, draw_n_days=
         plt.show()
         plt.close()
 
-    return (peaks, valleys, high_points, low_points)
+    return peaks, valleys, high_points, low_points

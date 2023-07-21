@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from datetime import timedelta
 
 
-def find_horizontal_area(df, high_points, low_points, max_len_of_window=30, min_len_of_window=10, gamma=0.4, view_coe=1, fft_percentile=0.55, ignore_hl=True, draw_hist=False):
+def find_horizontal_area(df, high_points, low_points, max_len_of_window=30, min_len_of_window=10, gamma=0.4, view_coe=1, fft_percentile=0.55, ignore_hl=False, must_hl=False, draw_hist=False):
     """
     该函数用于寻找横盘区间，返回一个DataFrame，包含横盘区间的起止日期，区间长度，高频占比
     ---
@@ -17,18 +17,29 @@ def find_horizontal_area(df, high_points, low_points, max_len_of_window=30, min_
     :param low_points: 低点列表，列表中每个元素为一个字典，包含低点日期和价格
     :param gamma: 横盘区间的价格变化与滑动窗口内价格变化的比值
     :param view_coe: 滑动窗口长度的系数，用于计算滑动窗口的起止日期
+    :param fft_percentile: 高频占比的百分位数，用于去除高频占比过高的横盘区间
+    :param must_hl: #!【仅供find_ha_near_hl_median调用】
+                    是否必须包含高点或低点，如果为True，则横盘区间必须包含高点或低点
     :return: 横盘区间的起止日期，区间长度，高频占比
     """
 
-    print('当前参数组合: max_len_of_window = {}, min_len_of_window = {}, gamma = {}'.format(
-        max_len_of_window, min_len_of_window, gamma))
+    if not must_hl:
+        print('当前参数组合: max_len_of_window = {}, min_len_of_window = {}, gamma = {}'.format(
+            max_len_of_window, min_len_of_window, gamma))
+    else:
+        # !参数仅供find_ha_near_hl_median调用
+        max_len_of_window = 100
+        min_len_of_window = 0
+        gamma = 0.8
+        view_coe = 0.5
+        fft_percentile = 1
 
     result = pd.DataFrame(columns=[
                           'start_date', 'end_date', 'price_change', 'interval', 'high_freq_ratio'])
 
     # 循环遍历每个高点和低点，确定横盘区间的起止日期，起始价格和结束价格
     index = 0
-    for i in tqdm(range(len(df))):
+    for i in tqdm(range(len(df)), leave=False):
         if i < index:
             continue
         for j in range(min_len_of_window+1, max_len_of_window+1):
@@ -42,6 +53,12 @@ def find_horizontal_area(df, high_points, low_points, max_len_of_window=30, min_
                 if any([high['high_date'] >= start_date and high['high_date'] <= end_date for high in high_points]):
                     continue
                 if any([low['low_date'] >= start_date and low['low_date'] <= end_date for low in low_points]):
+                    continue
+            
+            if must_hl:
+                # !参数仅供find_ha_near_hl_median调用
+                point_date = high_points['date']
+                if (start_date >= point_date) or (end_date <= point_date):
                     continue
 
             # 使用start date, end date, start peice, end price计算滑动窗口内的最大价格变化（窗口内所有价格的最高点减去最低点）
@@ -72,18 +89,21 @@ def find_horizontal_area(df, high_points, low_points, max_len_of_window=30, min_
             # 判断区间是否为横盘，如果是则将信息添加到 DataFrame 中
             # if (price_change <= gamma * max_change) & (price_change_in_hor_area <= 2 * gamma * max_change_in_hor_area) & (price_change_in_hor_area >= gamma * max_change_in_hor_area):
             if (price_change <= gamma * max_change):
-                
+
                 data_fft = fft(temp_data['S_DQ_CLOSE'].values)
                 energy = (data_fft * np.conj(data_fft)).real
                 high_freq_ratio = np.sum(energy[3:]) / np.sum(energy)
-                
+
                 result = result.append({'start_date': start_date,
                                         'end_date': end_date,
                                         'price_change': price_change,
                                         'interval': interval,
                                         'high_freq_ratio': high_freq_ratio}, ignore_index=True)
-                
-                index = i+j
+
+                if must_hl:
+                    break
+                else:
+                    index = i+j
     # print('len of result:', len(result))
     # print('mean of interval:', result['interval'].mean())
     # print('--------------------------------------------------')
@@ -93,32 +113,36 @@ def find_horizontal_area(df, high_points, low_points, max_len_of_window=30, min_
         plt.show()
         plt.close()
     result = result.drop_duplicates(subset=['start_date'])
-    
-    # 把return按照return['interval']均分为三组
-    mmin = result['interval'].min()
-    mmax = result['interval'].max()
-    mm1 = mmin + (mmax - mmin) / 3
-    mm2 = mmin + (mmax - mmin) / 3 * 2
-    result_1 = []
-    result_2 = []
-    result_3 = []
-    for i in range(len(result)):
-        if result.iloc[i]['interval'] <= mm1:
-            result_1.append(result.iloc[i])
-        elif result.iloc[i]['interval'] <= mm2:
-            result_2.append(result.iloc[i])
-        else:
-            result_3.append(result.iloc[i])
-    result_1 = pd.DataFrame(result_1)
-    result_2 = pd.DataFrame(result_2)
-    result_3 = pd.DataFrame(result_3)
-    # 去除高频占比过高的横盘，这通常是曲线过于平滑导致的
-    result_1 = result_1[result_1['high_freq_ratio'] < np.percentile(result_1['high_freq_ratio'], fft_percentile)]
-    result_2 = result_2[result_2['high_freq_ratio'] < np.percentile(result_2['high_freq_ratio'], fft_percentile)]
-    result_3 = result_3[result_3['high_freq_ratio'] < np.percentile(result_3['high_freq_ratio'], fft_percentile)]
-    result_tt = pd.concat([result_1, result_2, result_3])
-    
-    return result_tt
+
+    if not must_hl:
+        # 把return按照return['interval']均分为三组
+        mmin = result['interval'].min()
+        mmax = result['interval'].max()
+        mm1 = mmin + (mmax - mmin) / 3
+        mm2 = mmin + (mmax - mmin) / 3 * 2
+        result_1 = []
+        result_2 = []
+        result_3 = []
+        for i in range(len(result)):
+            if result.iloc[i]['interval'] <= mm1:
+                result_1.append(result.iloc[i])
+            elif result.iloc[i]['interval'] <= mm2:
+                result_2.append(result.iloc[i])
+            else:
+                result_3.append(result.iloc[i])
+        result_1 = pd.DataFrame(result_1)
+        result_2 = pd.DataFrame(result_2)
+        result_3 = pd.DataFrame(result_3)
+        # 去除高频占比过高的横盘，这通常是曲线过于平滑导致的
+        result_1 = result_1[result_1['high_freq_ratio'] < np.percentile(
+            result_1['high_freq_ratio'], fft_percentile)]
+        result_2 = result_2[result_2['high_freq_ratio'] < np.percentile(
+            result_2['high_freq_ratio'], fft_percentile)]
+        result_3 = result_3[result_3['high_freq_ratio'] < np.percentile(
+            result_3['high_freq_ratio'], fft_percentile)]
+        result = pd.concat([result_1, result_2, result_3])
+
+    return result
 
 
 def find_ha_near_hl(df, high_points, low_points, draw_hist=True):
@@ -181,7 +205,62 @@ def find_ha_near_hl(df, high_points, low_points, draw_hist=True):
     return result
 
 
+def _single_ha(df, current_point, threshold):
+    '''
+    以current_point为中心，找到df内变化幅度不超过threshold的区间
+    '''
+    df_1 = df[df['TRADE_DT'] < current_point['date']]
+    df_2 = df[df['TRADE_DT'] > current_point['date']]
+    start_date = df_1[(df_1['S_DQ_CLOSE'] > current_point['price'] * (1-threshold)) & (
+        df_1['S_DQ_CLOSE'] < current_point['price'] * (1+threshold))]['TRADE_DT'].min() + timedelta(days=1)
+    end_date = df_2[(df_2['S_DQ_CLOSE'] > current_point['price'] * (1-threshold)) & (
+        df_2['S_DQ_CLOSE'] < current_point['price'] * (1+threshold))]['TRADE_DT'].max() - timedelta(days=1)
+    interval = (end_date - start_date).days
+    median_price = df[(df['TRADE_DT'] >= start_date) & (
+        df['TRADE_DT'] <= end_date)]['S_DQ_CLOSE'].median()
+    result = pd.DataFrame(
+        {'start_date': start_date, 'end_date': end_date, 'interval': [interval], 'median_price': median_price})
+    
+    return result
+
+def find_ha_near_hl_median(df, high_points, low_points, threshold=0.05, draw_hist=True):
+
+    # 创建高低点的集合
+    hp = pd.DataFrame(high_points)
+    hp['state'] = 1
+    hp.columns = ['date', 'price', 'state']
+    lp = pd.DataFrame(low_points)
+    lp['state'] = -1
+    lp.columns = ['date', 'price', 'state']
+    hl_df = pd.concat([hp, lp])
+    hl_df.sort_values(by='date', inplace=True, ascending=True)
+
+    result = pd.DataFrame(
+        columns=['start_date', 'end_date', 'interval', 'median_price'])
+    for i in tqdm(range(1, len(hl_df)-1)):
+        last_point = hl_df.iloc[i-1]
+        current_point = hl_df.iloc[i]
+        next_point = hl_df.iloc[i+1]
+        df_temp = df[(df['TRADE_DT'] >= last_point['date']) &
+                     (df['TRADE_DT'] <= next_point['date'])]
+        result_temp = find_horizontal_area(df_temp, current_point, [], must_hl=True)
+        if not result_temp.empty:
+            result_temp = result_temp.iloc[len(result_temp)//2]
+            result_temp = pd.DataFrame(result_temp).T
+            result_temp['median_price'] = 0
+            result_temp = result_temp[['start_date', 'end_date', 'interval', 'median_price']]
+            # 求result_temp起止日期间价格的中位数
+            mm = df[(df['TRADE_DT'] >= result_temp['start_date'].values[0]) & (
+                df['TRADE_DT'] <= result_temp['end_date'].values[0])]['S_DQ_CLOSE'].median()
+            result_temp['median_price'] = mm
+            result = pd.concat([result, result_temp])
+
+    return result
+
+
 def draw_horizontal_area(df, result, high_points, low_points, stock_name, n_days=100, print_result=True, show_plot=True, save_plot=False):
+    result['start_date'] = pd.to_datetime(result['start_date'])
+    result['end_date'] = pd.to_datetime(result['end_date'])
     # 获取最后100天的数据
     last_hundred_days_df = df.tail(n_days)
     # 将last_hundred_days_df['TRADE_DT']转换为与peaks中日期格式相同的字符串格式
