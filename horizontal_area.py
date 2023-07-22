@@ -2,6 +2,7 @@ import numpy as np
 from scipy.fftpack import fft
 from tqdm import tqdm
 import pandas as pd
+import seaborn as sns
 import matplotlib.pyplot as plt
 from datetime import timedelta
 
@@ -215,20 +216,20 @@ def _single_ha(df, current_point, threshold):
     flag_2 = False
     # 筛选掉df_1 df_2中仅用一天价格变化幅度超过threshold的数据
     if (df_1.tail(1)['S_DQ_CLOSE'].values[0] < current_point['price'] * (1-threshold)) or (
-        df_1.tail(1)['S_DQ_CLOSE'].values[0] > current_point['price'] * (1+threshold)):
+            df_1.tail(1)['S_DQ_CLOSE'].values[0] > current_point['price'] * (1+threshold)):
         start_date = df_1['TRADE_DT'].min()
         flag_1 = True
     if (df_2.head(1)['S_DQ_CLOSE'].values[0] < current_point['price'] * (1-threshold)) or (
-        df_2.head(1)['S_DQ_CLOSE'].values[0] > current_point['price'] * (1+threshold)):
+            df_2.head(1)['S_DQ_CLOSE'].values[0] > current_point['price'] * (1+threshold)):
         end_date = df_2['TRADE_DT'].max()
         flag_2 = True
-    
+
     if not flag_1:
-        start_date = df_1[(df_1['S_DQ_CLOSE'] > current_point['price'] * (1-threshold)) & (
-            df_1['S_DQ_CLOSE'] < current_point['price'] * (1+threshold))]['TRADE_DT'].min() + timedelta(days=1)
+        start_date = df_1[(df_1['S_DQ_CLOSE'] >= current_point['price'] * (1-threshold)) & (
+            df_1['S_DQ_CLOSE'] <= current_point['price'] * (1+threshold))]['TRADE_DT'].min()
     if not flag_2:
-        end_date = df_2[(df_2['S_DQ_CLOSE'] > current_point['price'] * (1-threshold)) & (
-            df_2['S_DQ_CLOSE'] < current_point['price'] * (1+threshold))]['TRADE_DT'].max() - timedelta(days=1)
+        end_date = df_2[(df_2['S_DQ_CLOSE'] >= current_point['price'] * (1-threshold)) & (
+            df_2['S_DQ_CLOSE'] <= current_point['price'] * (1+threshold))]['TRADE_DT'].max()
     if pd.isna(start_date):
         start_date = df_1['TRADE_DT'].min()
     if pd.isna(end_date):
@@ -242,19 +243,23 @@ def _single_ha(df, current_point, threshold):
 
 
 def find_ha_near_hl_median(df, high_points, low_points, threshold=0.05):
+
     # 创建高低点的集合
     hp = pd.DataFrame(high_points)
-    hp['state'] = 1
-    hp.columns = ['date', 'price', 'state']
     lp = pd.DataFrame(low_points)
+    # 若hp, lp空则退出函数
+    if hp.empty or lp.empty:
+        return pd.DataFrame(columns=['start_date', 'end_date', 'interval', 'median_price'])
+    hp['state'] = 1
     lp['state'] = -1
+    hp.columns = ['date', 'price', 'state']
     lp.columns = ['date', 'price', 'state']
     hl_df = pd.concat([hp, lp])
     hl_df.sort_values(by='date', inplace=True, ascending=True)
 
     result = pd.DataFrame(
         columns=['start_date', 'end_date', 'interval', 'median_price'])
-    for i in tqdm(range(1, len(hl_df)-1)):
+    for i in tqdm(range(1, len(hl_df)-1), leave=False):
         last_point = hl_df.iloc[i-1]
         current_point = hl_df.iloc[i]
         next_point = hl_df.iloc[i+1]
@@ -377,3 +382,55 @@ def draw_horizontal_area(df, result, high_points, low_points, stock_name, n_days
         plt.savefig(plot_name)
     plt.close()
     return len(result), result['interval'].sum()
+
+
+def cal_diff_rate_between_medians(medians):
+    '''
+    计算medians中相邻两个中位数的变化率
+    '''
+    result = []
+    medians = medians['median_price'].values
+    for i in range(1, len(medians)):
+        temp_rate = medians[i] / medians[i-1] - 1
+        if np.isnan(temp_rate):
+            print(i)
+        result.append(temp_rate)
+
+    return result
+
+
+def draw_medians_all(cr_all):
+    # 去除cr_all中的异常值
+    cr_all = cr_all[cr_all['change_rate']<200]
+    # 重置index
+    cr_all.reset_index(drop=True, inplace=True)
+
+    plt.rcParams['figure.figsize'] = [5, 8]
+    plt.rcParams['font.sans-serif']=['Arial Unicode MS']
+    # 绘制boxplot并在图中每个box中位数上用文字写出数值
+    sns.boxplot(x='flag', y='change_rate', data=cr_all)
+    for i in range(len(cr_all.groupby('flag'))):
+        plt.text(i, cr_all.groupby('flag')['change_rate'].median()[i], 
+                round(cr_all.groupby('flag')['change_rate'].median()[i], 2), 
+                ha='center', va='bottom', fontsize=12)
+    plt.show()
+    # 绘制histogram
+    plt.rcParams['figure.figsize'] = [7,5]
+    sns.histplot(data=cr_all, x='change_rate', hue='flag', bins=60)
+    plt.show()
+
+    cr_all_abs = cr_all.copy()
+    cr_all_abs['change_rate'] = cr_all_abs['change_rate'].apply(lambda x: abs(x))
+    plt.rcParams['figure.figsize'] = [5, 8]
+    plt.rcParams['font.sans-serif']=['Arial Unicode MS']
+    # 绘制boxplot并在图中每个box中位数上用文字写出数值
+    sns.boxplot(x='flag', y='change_rate', data=cr_all)
+    for i in range(len(cr_all.groupby('flag'))):
+        plt.text(i, cr_all.groupby('flag')['change_rate'].median()[i], 
+                round(cr_all.groupby('flag')['change_rate'].median()[i], 2), 
+                ha='center', va='bottom', fontsize=12)
+    plt.show()
+    # 绘制histogram
+    plt.rcParams['figure.figsize'] = [7,5]
+    sns.histplot(data=cr_all, x='change_rate', hue='flag', bins=60)
+    plt.show()

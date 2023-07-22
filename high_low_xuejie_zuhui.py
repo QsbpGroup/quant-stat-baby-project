@@ -14,7 +14,7 @@ results_directory = os.path.join(
 def df_init(filename='000001.SZ.csv'):
     # 构建完整的文件路径
     file_path = os.path.join(data_directory, filename)
-    print('Current file path is', file_path)
+    # print('Current file path is', file_path)
     df = pd.read_csv(file_path)
     df['TRADE_DT'] = pd.to_datetime(df['TRADE_DT'], format='%Y%m%d')
     # 仅用到日期和收盘价两列
