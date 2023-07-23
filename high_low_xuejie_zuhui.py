@@ -261,6 +261,7 @@ def find_high_low_old(df, filename='000001.SZ.csv', save_data=True, draw_n_days=
         result_df.to_csv(output_file_path, index=False, encoding='utf-8-sig')
 
     if(draw):
+        plt.ioff()
         plt.rcParams['figure.figsize'] = [10, 5]
         # 获取最后100天的数据
         last_hundred_days_df = df.tail(draw_n_days)
