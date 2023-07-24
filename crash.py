@@ -1,11 +1,11 @@
-import pandas as pd
+from pandas import DataFrame
 import matplotlib.pyplot as plt
 from high_low_xuejie_zuhui import find_high_low
 
 
 def crash(df, threshold=0.4):
     """
-    识别股票在两个高低点间跌幅超过threshold并且在随后出现横盘1-2个月的情况
+    识别股票在三轮下跌(要求每次反弹不超过上次下跌的50%)内跌幅超过threshold的点的情况
 
     Parameters
     ----------
@@ -18,12 +18,13 @@ def crash(df, threshold=0.4):
     Returns
     -------
     result = DataFrame
-        跌幅超过threshold的点, 列：['start_date', 'end_date', 'sideway_start_date', 'sideway_end_date']
+        跌幅超过threshold的点, 列：['start_date', 'end_date', 'type'], 
+        type=1表示单次暴跌, type=2表示双次内暴跌, type=3表示三次内暴跌
     """
     # 找出高低点
     highs, lows = find_high_low(df, draw=False)
     # 计算每个低点到下一个高点的跌幅
-    result = pd.DataFrame()
+    result = DataFrame()
     # 如果第一个低点比第一个高点靠前，删除第一个低点
     if lows[0]['low_date'] < highs[0]['high_date']:
         lows = lows[1:]
@@ -67,8 +68,8 @@ def draw_crash(df, crash, start_date, end_date):
     df_cache = df.copy()
     highs, lows = find_high_low(df_cache, draw=False)
     df_cache.columns = ['date', 'price']
-    highs = pd.DataFrame(highs)
-    lows = pd.DataFrame(lows)
+    highs = DataFrame(highs)
+    lows = DataFrame(lows)
     # 截取需要的数据
     df_cache = df_cache[(df_cache['date'] >= start_date)
                         & (df_cache['date'] <= end_date)]
