@@ -44,28 +44,30 @@ def find_high_low(df, filename='000001.SZ.csv', save_data=True, draw_n_days=200,
     >>> df = df[['TRADE_DT', 'S_DQ_CLOSE']]
     >>> high_points, low_points = find_high_low(df, filename='000001.SZ.csv', save_data = True, draw_n_days=200, draw=True)
     '''
+    # 初始化df_cache，避免浅拷贝导致的原始df被修改
+    df_cache = df.copy()
     # 找出MACD
-    macd, macd_signal, _ = talib.MACD(df['S_DQ_CLOSE'].values)
-    df['macd'] = macd
-    df['macd_signal'] = macd_signal
+    macd, macd_signal, _ = talib.MACD(df_cache['S_DQ_CLOSE'].values)
+    df_cache['macd'] = macd
+    df_cache['macd_signal'] = macd_signal
 
     # 找出金叉和死叉
-    df['golden_cross'] = ((df['macd'] > df['macd_signal']) & (
-        df['macd'].shift() < df['macd_signal'].shift())).astype(int)
-    df['death_cross'] = ((df['macd'] < df['macd_signal']) & (
-        df['macd'].shift() > df['macd_signal'].shift())).astype(int)
+    df_cache['golden_cross'] = ((df_cache['macd'] > df_cache['macd_signal']) & (
+        df_cache['macd'].shift() < df_cache['macd_signal'].shift())).astype(int)
+    df_cache['death_cross'] = ((df_cache['macd'] < df_cache['macd_signal']) & (
+        df_cache['macd'].shift() > df_cache['macd_signal'].shift())).astype(int)
 
     # 选出金叉和死叉
     # * df_cross保存了金叉、死叉，shift_date是下一个x的日期
-    df_cross = df[(df['golden_cross'] == 1) | (df['death_cross'] == 1)].copy()
+    df_cross = df_cache[(df_cache['golden_cross'] == 1) | (df_cache['death_cross'] == 1)].copy()
     df_cross['shift_date'] = df_cross['TRADE_DT'].shift(-1)
     df_cross = df_cross.dropna(subset=['shift_date'])
     df_high_points = pd.DataFrame()
     df_low_points = pd.DataFrame()
     for index, row in df_cross.iterrows():
         # df3保存了两个x之间的df
-        df_current_window = df[(df['TRADE_DT'] >= row['TRADE_DT']) & (
-            df['TRADE_DT'] <= row['shift_date'])]
+        df_current_window = df_cache[(df_cache['TRADE_DT'] >= row['TRADE_DT']) & (
+            df_cache['TRADE_DT'] <= row['shift_date'])]
         if df_current_window.iloc[0]['golden_cross'] == 1:
             # * 金叉->死叉，之间是高点
             df_temp = df_current_window[df_current_window['S_DQ_CLOSE'].values ==
@@ -104,7 +106,7 @@ def find_high_low(df, filename='000001.SZ.csv', save_data=True, draw_n_days=200,
 
     if save_data:
         # 将结果保存到CSV文件（指定编码为UTF-8）
-        df.sort_values('TRADE_DT', inplace=True)
+        df_cache.sort_values('TRADE_DT', inplace=True)
         # 计算高点和低点的时间间隔和涨幅
         result_data = []
         for i in range(min(len(df_high_points), len(df_low_points))):
@@ -131,7 +133,7 @@ def find_high_low(df, filename='000001.SZ.csv', save_data=True, draw_n_days=200,
     if(draw):
         plt.rcParams['figure.figsize'] = [10, 5]
         # 获取最后100天的数据
-        last_hundred_days_df = df.tail(draw_n_days)
+        last_hundred_days_df = df_cache.tail(draw_n_days)
         # 绘制折线图
         plt.plot(last_hundred_days_df['TRADE_DT'],
                  last_hundred_days_df['S_DQ_CLOSE'], color='royalblue', label='stock price', alpha=0.8)
