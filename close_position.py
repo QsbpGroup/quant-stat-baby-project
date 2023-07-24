@@ -28,7 +28,7 @@ def close_position(df, threshold=0.1):
     if len(df) < 2:
         raise ValueError('Input df must contain at least 2 rows.')
 
-    # I初始化变量
+    # 初始化变量
     df.reset_index(drop=True, inplace=True)
     df.columns = ['date', 'price']
     buy_date = df['date'][0]
