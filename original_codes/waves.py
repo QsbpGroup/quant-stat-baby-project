@@ -61,12 +61,12 @@ for filename in tqdm(os.listdir(data_directory)):
             df3 = df[(df['TRADE_DT'] >= row['TRADE_DT']) &
                      (df['TRADE_DT'] <= row['shift_date'])]
             if df3.iloc[0]['golden_cross'] == 1:
-                # * 金叉->死叉，之间是高点
+                # * 金叉->死叉，之间是高点（df2）
                 df4 = df3[df3['S_DQ_CLOSE'].values == df3['S_DQ_CLOSE'].max()]
                 df4 = df4.head(1)
                 df2 = pd.concat([df2, df4])
             elif df3.iloc[0]['death_cross'] == 1:
-                # * 死叉->金叉，之间是低点
+                # * 死叉->金叉，之间是低点（df5）
                 df4 = df3[df3['S_DQ_CLOSE'].values == df3['S_DQ_CLOSE'].min()]
                 df4 = df4.head(1)
                 df5 = pd.concat([df5, df4])

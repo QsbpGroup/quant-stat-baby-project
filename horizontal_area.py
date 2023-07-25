@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from datetime import timedelta
 
 
-def find_horizontal_area(df, high_points, low_points, max_len_of_window=30, min_len_of_window=10, gamma=0.4, view_coe=1, fft_percentile=0.55, ignore_hl=False, must_hl=False, draw_hist=False):
+def find_horizontal_area(df, high_points, low_points, max_len_of_window=30, min_len_of_window=10, gamma=0.4, view_coe=1, only_past=False, fft_percentile=0.55, ignore_hl=False, must_hl=False, draw_hist=False):
     """
     该函数用于寻找横盘区间，返回一个DataFrame，包含横盘区间的起止日期，区间长度，高频占比
     ---
@@ -67,6 +67,8 @@ def find_horizontal_area(df, high_points, low_points, max_len_of_window=30, min_
                 timedelta(days=max_len_of_window*view_coe)
             end_date_window = end_date + \
                 timedelta(days=max_len_of_window*view_coe)
+            if(only_past == True):
+                end_date_window = end_date
             temp_data = df[(df['TRADE_DT'] >= start_date_window) & (
                 df['TRADE_DT'] <= end_date_window)]
             max_change = temp_data['S_DQ_CLOSE'].max(

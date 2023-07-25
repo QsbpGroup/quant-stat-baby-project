@@ -28,7 +28,7 @@ def dic_init():
         os.makedirs(results_directory)
 
 
-def find_high_low(df, filename='000001.SZ.csv', save_data=True, draw_n_days=200, draw=True):
+def find_high_low(df, filename='000001.SZ.csv', save_data=False, draw_n_days=200, fig_start_date='1', fig_end_date='1', draw=True):
     '''
     Output:
     ------------
@@ -132,26 +132,34 @@ def find_high_low(df, filename='000001.SZ.csv', save_data=True, draw_n_days=200,
 
     if(draw):
         plt.rcParams['figure.figsize'] = [10, 5]
-        # 获取最后100天的数据
-        last_hundred_days_df = df_cache.tail(draw_n_days)
-        # 绘制折线图
-        plt.plot(last_hundred_days_df['TRADE_DT'],
-                 last_hundred_days_df['S_DQ_CLOSE'], color='royalblue', label='stock price', alpha=0.8)
-        # 将last_hundred_days_df['TRADE_DT']转换为与peaks中日期格式相同的字符串格式
-        last_hundred_days_dates = last_hundred_days_df['TRADE_DT'].dt.strftime(
-            '%Y-%m-%d')
 
-        # 提取最后100天内的高点和低点
-        last_hundred_days_high = [high_point for high_point in high_points if high_point['high_date'].strftime(
+        if fig_start_date != '1' and fig_end_date != '1':
+            last_n_days_df = df_cache[(df_cache['TRADE_DT'] >= fig_start_date) & (
+                df_cache['TRADE_DT'] <= fig_end_date)]
+            last_hundred_days_dates = last_n_days_df['TRADE_DT'].dt.strftime(
+                '%Y-%m-%d')
+        else:
+            # 获取最后draw_n_days天的数据
+            last_n_days_df = df_cache.tail(draw_n_days)
+            # 将last_hundred_days_df['TRADE_DT']转换为与peaks中日期格式相同的字符串格式
+            last_hundred_days_dates = last_n_days_df['TRADE_DT'].dt.strftime(
+                '%Y-%m-%d')
+
+        # 提取最后draw_n_days天内的高点和低点
+        last_n_days_high = [high_point for high_point in high_points if high_point['high_date'].strftime(
             '%Y-%m-%d') in last_hundred_days_dates.values]
-        last_hundred_days_low = [low_point for low_point in low_points if low_point['low_date'].strftime(
+        last_n_days_low = [low_point for low_point in low_points if low_point['low_date'].strftime(
             '%Y-%m-%d') in last_hundred_days_dates.values]
+
+        # 绘制折线图
+        plt.plot(last_n_days_df['TRADE_DT'],
+                 last_n_days_df['S_DQ_CLOSE'], color='royalblue', label='stock price', alpha=0.8)
 
         # 标记高点和低点
-        for high_point in last_hundred_days_high:
+        for high_point in last_n_days_high:
             plt.scatter(high_point['high_date'], high_point['high_price'],
                         color='red', marker='*', label='high', s=80)
-        for low_point in last_hundred_days_low:
+        for low_point in last_n_days_low:
             plt.scatter(low_point['low_date'], low_point['low_price'],
                         color='green', marker='*', label='low', s=80)
 

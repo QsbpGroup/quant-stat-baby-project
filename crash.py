@@ -60,9 +60,9 @@ def crash(df, threshold=0.4):
     return result
 
 
-def draw_crash(df, crash, start_date, end_date):
+def draw_crash(df, crash, fig_start_date, fig_end_date):
     """
-    画出start_date, end_date之间的crash情况
+    画出fig_start_date, fig_end_date之间的crash情况
     """
     # 初始化df_cache，避免浅拷贝导致的原始df被修改
     df_cache = df.copy()
@@ -71,15 +71,15 @@ def draw_crash(df, crash, start_date, end_date):
     highs = DataFrame(highs)
     lows = DataFrame(lows)
     # 截取需要的数据
-    df_cache = df_cache[(df_cache['date'] >= start_date)
-                        & (df_cache['date'] <= end_date)]
-    highs = highs[(highs['high_date'] >= start_date)
-                  & (highs['high_date'] <= end_date)]
-    lows = lows[(lows['low_date'] >= start_date)
-                & (lows['low_date'] <= end_date)]
+    df_cache = df_cache[(df_cache['date'] >= fig_start_date)
+                        & (df_cache['date'] <= fig_end_date)]
+    highs = highs[(highs['high_date'] >= fig_start_date)
+                  & (highs['high_date'] <= fig_end_date)]
+    lows = lows[(lows['low_date'] >= fig_start_date)
+                & (lows['low_date'] <= fig_end_date)]
     # 筛选crash中的[start_date, end_date]，确保在df_cache中
-    crash = crash[(crash['start_date'] >= start_date)
-                  & (crash['start_date'] <= end_date)]
+    crash = crash[(crash['start_date'] >= fig_start_date)
+                  & (crash['start_date'] <= fig_end_date)]
 
     plt.rcParams['figure.figsize'] = [10, 5]
     plt.rcParams['font.sans-serif']=['Arial Unicode MS']
