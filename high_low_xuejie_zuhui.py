@@ -334,3 +334,126 @@ def find_high_low_old(df, filename='000001.SZ.csv', save_data=True, draw_n_days=
         plt.close()
 
     return peaks, valleys, high_points, low_points
+
+
+def find_hl_MACD_robust(df, filename='000001.SZ.csv', draw_n_days=200, fig_start_date='1', fig_end_date='1', draw=True):
+    """
+    Same as find_high_low, but ignore high low points if abs(MACD) < 0.02
+    """
+    # 初始化df_cache，避免浅拷贝导致的原始df被修改
+    df_cache = df.copy()
+    # 找出MACD
+    macd, macd_signal, _ = talib.MACD(df_cache['S_DQ_CLOSE'].values)
+    df_cache['diff'] = macd - macd_signal
+    # drop points if abs('diff') < 0.02
+    df_cache = df_cache[df_cache['diff'].abs() > 0.02]
+    # use diff to find golden cross and death cross
+    df_cache['golden_cross'] = ((df_cache['diff'] > 0) & (
+        df_cache['diff'].shift() < 0)).astype(int)
+    df_cache['death_cross'] = ((df_cache['diff'] < 0) & (
+        df_cache['diff'].shift() > 0)).astype(int)
+    # 选出金叉和死叉
+    # * df_cross保存了金叉、死叉，shift_date是下一个x的日期
+    df_cross = df_cache[(df_cache['golden_cross'] == 1) | (df_cache['death_cross'] == 1)].copy()
+    df_cross['shift_date'] = df_cross['TRADE_DT'].shift(-1)
+    df_cross = df_cross.dropna(subset=['shift_date'])
+    df_high_points = pd.DataFrame()
+    df_low_points = pd.DataFrame()
+    for index, row in df_cross.iterrows():
+        # df3保存了两个x之间的df
+        df_current_window = df_cache[(df_cache['TRADE_DT'] >= row['TRADE_DT']) & (
+            df_cache['TRADE_DT'] <= row['shift_date'])]
+        if df_current_window.iloc[0]['golden_cross'] == 1:
+            # * 金叉->死叉，之间是高点
+            df_temp = df_current_window[df_current_window['S_DQ_CLOSE'].values ==
+                                        df_current_window['S_DQ_CLOSE'].max()]
+            df_temp = df_temp.head(1)
+            df_high_points = pd.concat([df_high_points, df_temp])
+        elif df_current_window.iloc[0]['death_cross'] == 1:
+            # * 死叉->金叉，之间是低点
+            df_temp = df_current_window[df_current_window['S_DQ_CLOSE'].values ==
+                                        df_current_window['S_DQ_CLOSE'].min()]
+            df_temp = df_temp.head(1)
+            df_low_points = pd.concat([df_low_points, df_temp])
+
+    #high曲线的谷值，找低点
+    highs_valleys = [] 
+    for i in range(2,len(df_high_points)-1):
+        if df_high_points.iloc[i]['S_DQ_CLOSE'] < df_high_points.iloc[i-1]['S_DQ_CLOSE'] and df_high_points.iloc[i]['S_DQ_CLOSE'] < df_high_points.iloc[i+1]['S_DQ_CLOSE']:
+            highs_valleys.append({'date': df_high_points.iloc[i]['TRADE_DT'], 'price': df_high_points.iloc[i]['S_DQ_CLOSE']})
+
+    #low曲线的峰值，找高点
+    lows_peaks = [] 
+    for i in range(2,len(df_low_points)-1):
+        if df_low_points.iloc[i]['S_DQ_CLOSE'] > df_low_points.iloc[i-1]['S_DQ_CLOSE'] and df_low_points.iloc[i]['S_DQ_CLOSE'] > df_low_points.iloc[i+1]['S_DQ_CLOSE']:
+            lows_peaks.append({'date': df_low_points.iloc[i]['TRADE_DT'], 'price': df_low_points.iloc[i]['S_DQ_CLOSE']})
+
+    # 初始化一个列表：high_points，其中每个元素是一个字典，包含两个键值对：high_date和high_price
+    high_points = []
+    for index, row in df_high_points.iterrows():
+        high_points.append(
+            {'high_date': row['TRADE_DT'], 'high_price': row['S_DQ_CLOSE']})
+    # 初始化一个列表：low_points，其中每个元素是一个字典，包含两个键值对：low_date和low_price
+    low_points = []
+    for index, row in df_low_points.iterrows():
+        low_points.append(
+            {'low_date': row['TRADE_DT'], 'low_price': row['S_DQ_CLOSE']})
+
+    if(draw):
+        plt.rcParams['figure.figsize'] = [10, 5]
+
+        if fig_start_date != '1' and fig_end_date != '1':
+            last_n_days_df = df_cache[(df_cache['TRADE_DT'] >= fig_start_date) & (
+                df_cache['TRADE_DT'] <= fig_end_date)]
+            last_hundred_days_dates = last_n_days_df['TRADE_DT'].dt.strftime(
+                '%Y-%m-%d')
+        else:
+            # 获取最后draw_n_days天的数据
+            last_n_days_df = df_cache.tail(draw_n_days)
+            # 将last_hundred_days_df['TRADE_DT']转换为与peaks中日期格式相同的字符串格式
+            last_hundred_days_dates = last_n_days_df['TRADE_DT'].dt.strftime(
+                '%Y-%m-%d')
+
+        # 提取最后draw_n_days天内的高点和低点
+        last_n_days_high = [high_point for high_point in high_points if high_point['high_date'].strftime(
+            '%Y-%m-%d') in last_hundred_days_dates.values]
+        last_n_days_low = [low_point for low_point in low_points if low_point['low_date'].strftime(
+            '%Y-%m-%d') in last_hundred_days_dates.values]
+
+        # 绘制折线图
+        plt.plot(last_n_days_df['TRADE_DT'],
+                 last_n_days_df['S_DQ_CLOSE'], color='royalblue', label='stock price', alpha=0.8)
+
+        # 标记高点和低点
+        for high_point in last_n_days_high:
+            plt.scatter(high_point['high_date'], high_point['high_price'],
+                        color='red', marker='*', label='high', s=80)
+        for low_point in last_n_days_low:
+            plt.scatter(low_point['low_date'], low_point['low_price'],
+                        color='green', marker='*', label='low', s=80)
+
+        # 设置图形标题和标签
+        plt.title('Stock Price')
+        plt.xlabel('Date')
+        plt.ylabel('Price')
+        # 获取当前图形中的所有句柄和标签
+        handles, labels = plt.gca().get_legend_handles_labels()
+
+        # 去除重复的标签
+        unique_labels = set(labels)
+
+        # 创建新的标签和句柄列表, 其中元素按照'stock price', 'high', 'low'的顺序排列
+        new_labels = ['stock price', 'high', 'low']
+        new_handles = []
+        for new_label in new_labels:
+            for i in range(len(labels)):
+                if labels[i] == new_label:
+                    new_handles.append(handles[i])
+                    break
+
+        plt.legend(handles=new_handles, labels=new_labels)
+        plt.show()
+        plt.close()
+
+    return (high_points, low_points)
+
