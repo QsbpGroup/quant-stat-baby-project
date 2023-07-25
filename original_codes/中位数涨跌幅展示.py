@@ -24,7 +24,7 @@ for filename in tqdm(os.listdir(data_directory)):
         change_rate.columns = ['change_rate']
         change_rate['flag'] = change_rate['change_rate'].apply(lambda x: '上涨' if x >= 0 else '下跌')
         change_rate['change_rate'] = change_rate['change_rate']*100
-        cr_all.append(change_rate)
+        cr_all = cr_all.append(change_rate)
         count+=1
 
 # 重置index
