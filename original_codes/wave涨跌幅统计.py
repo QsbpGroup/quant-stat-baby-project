@@ -27,8 +27,8 @@ def waves_price_change(df):
     df_lows.reset_index(drop=True, inplace=True)
     df_highs = df_highs.iloc[high_chang_point_index]
     df_lows = df_lows.iloc[low_chang_point_index]
-    df_highs = df_highs[['index', 'date', 'high_price']]
-    df_lows = df_lows[['index', 'date', 'low_price']]
+    df_highs = df_highs[['index', 'high_date', 'high_price']]
+    df_lows = df_lows[['index', 'low_date', 'low_price']]
     df_highs.columns = ['index', 'date', 'price']
     df_lows.columns = ['index', 'date', 'price']
     df_highs['type'] = 'high'
