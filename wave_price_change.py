@@ -1,4 +1,5 @@
-import pandas as pd
+from pandas import DataFrame, concat
+import matplotlib.pyplot as plt
 from high_low_xuejie_zuhui import find_hl_MACD_robust, df_init
 
 
@@ -23,13 +24,12 @@ def wave_idnetify(filename='000001.SZ.csv', alpha=0.05):
 
     Returns
     -------
-    real_waves : pd.DataFrame
+    real_waves : DataFrame
         columns=['date', 'price', 'type'], type can be 'edo_fall'(a low point) and 'edo_rise'(a high point).
     """
 
     df = df_init(filename)
-    high_points, low_points = find_hl_MACD_robust(
-        df, filename, draw=False, fig_start_date='2019-7', fig_end_date='2021-3')
+    high_points, low_points = find_hl_MACD_robust(df, filename, draw=False)
     hd = [item['high_date'] for item in high_points]
     hp = [item['high_price'] for item in high_points]
     ld = [item['low_date'] for item in low_points]
@@ -43,22 +43,22 @@ def wave_idnetify(filename='000001.SZ.csv', alpha=0.05):
         if lp[i+1] < lp[i] and lp[i-1] < lp[i]:
             l_cgdt.append(
                 {'date': ld[i], 'price': lp[i], 'pcg': lp[i]-min(lp[i+1], lp[i-1])})
-    h_cgdt = pd.DataFrame(h_cgdt)
+    h_cgdt = DataFrame(h_cgdt)
     h_cgdt = h_cgdt[h_cgdt['pcg'] > h_cgdt['pcg'].quantile(alpha)]
     h_cgdt['type'] = 'edo_fall'
-    l_cgdt = pd.DataFrame(l_cgdt)
+    l_cgdt = DataFrame(l_cgdt)
     l_cgdt = l_cgdt[l_cgdt['pcg'] > l_cgdt['pcg'].quantile(alpha)]
     l_cgdt['type'] = 'edo_rise'
-    all_cgdt = pd.concat([h_cgdt, l_cgdt])
+    all_cgdt = concat([h_cgdt, l_cgdt])
     all_cgdt.sort_values(by=['date'], inplace=True)
     all_cgdt.reset_index(drop=True, inplace=True)
     all_cgdt['true_date'] = None
     type_lst = all_cgdt['type'].tolist()
     dt_lst = all_cgdt['date'].tolist()
     prs_lst = all_cgdt['price'].tolist()
-    real_waves = pd.DataFrame(columns=['date', 'price', 'type'])
-    h_df = pd.DataFrame(high_points)
-    l_df = pd.DataFrame(low_points)
+    real_waves = DataFrame(columns=['date', 'price', 'type'])
+    h_df = DataFrame(high_points)
+    l_df = DataFrame(low_points)
     for i in range(1, len(all_cgdt)):
         if type_lst[i] == type_lst[i-1]:
             if type_lst[i] == 'edo_fall':
@@ -128,3 +128,74 @@ def wave_idnetify(filename='000001.SZ.csv', alpha=0.05):
                         {'date': high_dt2, 'price': high_p2, 'type': 'edo_rise'}, ignore_index=True)
 
     return real_waves
+
+
+def draw_waves(df, real_waves, fig_start_date, fig_end_date):
+    """
+    画出fig_start_date, fig_end_date之间的crash情况
+    """
+    # 初始化df_cache，避免浅拷贝导致的原始df被修改
+    df_cache = df.copy()
+    highs, lows = find_hl_MACD_robust(df_cache, draw=False)
+    df_cache.columns = ['date', 'price']
+    highs = DataFrame(highs)
+    lows = DataFrame(lows)
+    # 截取需要的数据
+    df_cache = df_cache[(df_cache['date'] >= fig_start_date)
+                        & (df_cache['date'] <= fig_end_date)]
+    highs = highs[(highs['high_date'] >= fig_start_date)
+                  & (highs['high_date'] <= fig_end_date)]
+    lows = lows[(lows['low_date'] >= fig_start_date)
+                & (lows['low_date'] <= fig_end_date)]
+    # 筛选crash中的[start_date, end_date]，确保在df_cache中
+    real_waves = real_waves[(real_waves['date'] >= fig_start_date)
+                  & (real_waves['date'] <= fig_end_date)]
+
+    plt.rcParams['figure.figsize'] = [10, 5]
+    plt.rcParams['font.sans-serif']=['Arial Unicode MS']
+    
+    # 绘制df的折线图, 颜色浅蓝色
+    plt.plot(df_cache['date'], df_cache['price'], label='stock price')
+    # 将highs中的高点绘制成红色的星星
+    plt.scatter(highs['high_date'], highs['high_price'],
+                color='red', marker='*', s=80, label='high points')
+    # 将lows中的低点绘制成绿色的星星
+    plt.scatter(lows['low_date'], lows['low_price'],
+                color='green', marker='*', s=80, label='low points')
+
+    for i in range(len(real_waves)-1):
+        if real_waves.iloc[i]['type'] == 'edo_fall':
+            plt.axvspan(real_waves.iloc[i]['date'], real_waves.iloc[i+1]['date'],
+                        facecolor='red', alpha=0.15, label='rising waves')
+        else:
+            plt.axvspan(real_waves.iloc[i]['date'], real_waves.iloc[i+1]['date'],
+                        facecolor='green', alpha=0.15, label='falling waves')
+    if real_waves.iloc[0]['type'] == 'edo_fall':
+        plt.axvspan(fig_start_date, real_waves.iloc[0]['date'],
+                    facecolor='green', alpha=0.15, label='falling waves')
+    else:
+        plt.axvspan(fig_start_date, real_waves.iloc[0]['date'],
+                    facecolor='red', alpha=0.15, label='rising waves')
+    if real_waves.iloc[-1]['type'] == 'edo_fall':
+        plt.axvspan(real_waves.iloc[-1]['date'], fig_end_date,
+                    facecolor='red', alpha=0.15, label='rising waves')
+    else:
+        plt.axvspan(real_waves.iloc[-1]['date'], fig_end_date,
+                    facecolor='green', alpha=0.15, label='falling waves')
+
+    # 设置正确的label和title
+    plt.xlabel('date')
+    plt.ylabel('price')
+    plt.title('Waves')
+    handles, labels = plt.gca().get_legend_handles_labels()
+    # legand去重
+    set(labels)
+    new_labels, new_handles = ['stock price', 'high points', 'low points', 'rising waves', 'falling waves'], []
+    for i in range(len(new_labels)):
+        for j in range(len(labels)):
+            if new_labels[i] == labels[j]:
+                new_handles.append(handles[j])
+                break
+    plt.legend(new_handles, new_labels)
+    plt.show()
+    plt.close()
