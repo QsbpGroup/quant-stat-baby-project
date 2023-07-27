@@ -1,5 +1,6 @@
 from pandas import DataFrame, concat
 import matplotlib.pyplot as plt
+import seaborn as sns
 from high_low_xuejie_zuhui import find_hl_MACD_robust, df_init
 
 
@@ -36,7 +37,7 @@ def wave_idnetify(filename='000001.SZ.csv', alpha=0.05):
     lp = [item['low_price'] for item in low_points]
     h_cgdt = []
     l_cgdt = []
-    for i in range(2, len(hd)-1):
+    for i in range(1, min(len(hp), len(lp))-1):
         if hp[i+1] > hp[i] and hp[i-1] > hp[i]:
             h_cgdt.append(
                 {'date': hd[i], 'price': hp[i], 'pcg': max(hp[i+1], hp[i-1])-hp[i]})
@@ -44,9 +45,11 @@ def wave_idnetify(filename='000001.SZ.csv', alpha=0.05):
             l_cgdt.append(
                 {'date': ld[i], 'price': lp[i], 'pcg': lp[i]-min(lp[i+1], lp[i-1])})
     h_cgdt = DataFrame(h_cgdt)
+    l_cgdt = DataFrame(l_cgdt)
+    if len(h_cgdt) == 0 or len(l_cgdt) == 0:
+        return DataFrame(columns=['date', 'price', 'type'])
     h_cgdt = h_cgdt[h_cgdt['pcg'] > h_cgdt['pcg'].quantile(alpha)]
     h_cgdt['type'] = 'edo_fall'
-    l_cgdt = DataFrame(l_cgdt)
     l_cgdt = l_cgdt[l_cgdt['pcg'] > l_cgdt['pcg'].quantile(alpha)]
     l_cgdt['type'] = 'edo_rise'
     all_cgdt = concat([h_cgdt, l_cgdt])
@@ -71,6 +74,10 @@ def wave_idnetify(filename='000001.SZ.csv', alpha=0.05):
                 real_waves = real_waves.append(
                     {'date': tmp_h['high_date'].iloc[0], 'price': tmp_h['high_price'].iloc[0], 'type': 'edo_rise'}, ignore_index=True)
                 # 找到low_points中在dt_lst[i]之前的最后一个low_point和之后的第一个low_point
+                if ld[-1] <= dt_lst[i]:
+                    real_waves = real_waves.append(
+                        {'date': ld[-1], 'price': lp[-1], 'type': 'edo_fall'}, ignore_index=True)
+                    continue
                 low_dt1 = [item for item in ld if item < dt_lst[i]][-1]
                 low_dt2 = [item for item in ld if item > dt_lst[i]][0]
                 low_p1 = lp[ld.index(low_dt1)]
@@ -90,6 +97,10 @@ def wave_idnetify(filename='000001.SZ.csv', alpha=0.05):
                 real_waves = real_waves.append(
                     {'date': tmp_l['low_date'].iloc[0], 'price': tmp_l['low_price'].iloc[0], 'type': 'edo_fall'}, ignore_index=True)
                 # 找到high_points中在dt_lst[i]之前的最后一个high_point和之后的第一个high_point
+                if hd[-1] <= dt_lst[i]:
+                    real_waves = real_waves.append(
+                        {'date': hd[-1], 'price': hp[-1], 'type': 'edo_rise'}, ignore_index=True)
+                    continue
                 high_dt1 = [item for item in hd if item < dt_lst[i]][-1]
                 high_dt2 = [item for item in hd if item > dt_lst[i]][0]
                 high_p1 = hp[hd.index(high_dt1)]
@@ -104,6 +115,10 @@ def wave_idnetify(filename='000001.SZ.csv', alpha=0.05):
             # 这里要找到end of fall（高点）两侧更低的那个低点，vise versa
             if type_lst[i] == 'edo_fall':
                 # 找到low_points中在dt_lst[i]之前的最后一个low_point和之后的第一个low_point
+                if ld[-1] <= dt_lst[i]:
+                    real_waves = real_waves.append(
+                        {'date': ld[-1], 'price': lp[-1], 'type': 'edo_fall'}, ignore_index=True)
+                    continue
                 low_dt1 = [item for item in ld if item < dt_lst[i]][-1]
                 low_dt2 = [item for item in ld if item > dt_lst[i]][0]
                 low_p1 = lp[ld.index(low_dt1)]
@@ -116,6 +131,10 @@ def wave_idnetify(filename='000001.SZ.csv', alpha=0.05):
                         {'date': low_dt2, 'price': low_p2, 'type': 'edo_fall'}, ignore_index=True)
             if type_lst[i] == 'edo_rise':
                 # 找到high_points中在dt_lst[i]之前的最后一个high_point和之后的第一个high_point
+                if hd[-1] <= dt_lst[i]:
+                    real_waves = real_waves.append(
+                        {'date': hd[-1], 'price': hp[-1], 'type': 'edo_rise'}, ignore_index=True)
+                    continue
                 high_dt1 = [item for item in hd if item < dt_lst[i]][-1]
                 high_dt2 = [item for item in hd if item > dt_lst[i]][0]
                 high_p1 = hp[hd.index(high_dt1)]
@@ -149,11 +168,11 @@ def draw_waves(df, real_waves, fig_start_date, fig_end_date):
                 & (lows['low_date'] <= fig_end_date)]
     # 筛选crash中的[start_date, end_date]，确保在df_cache中
     real_waves = real_waves[(real_waves['date'] >= fig_start_date)
-                  & (real_waves['date'] <= fig_end_date)]
+                            & (real_waves['date'] <= fig_end_date)]
 
     plt.rcParams['figure.figsize'] = [10, 5]
-    plt.rcParams['font.sans-serif']=['Arial Unicode MS']
-    
+    plt.rcParams['font.sans-serif'] = ['Arial Unicode MS']
+
     # 绘制df的折线图, 颜色浅蓝色
     plt.plot(df_cache['date'], df_cache['price'], label='stock price')
     # 将highs中的高点绘制成红色的星星
@@ -190,7 +209,8 @@ def draw_waves(df, real_waves, fig_start_date, fig_end_date):
     handles, labels = plt.gca().get_legend_handles_labels()
     # legand去重
     set(labels)
-    new_labels, new_handles = ['stock price', 'high points', 'low points', 'rising waves', 'falling waves'], []
+    new_labels, new_handles = ['stock price', 'high points',
+                               'low points', 'rising waves', 'falling waves'], []
     for i in range(len(new_labels)):
         for j in range(len(labels)):
             if new_labels[i] == labels[j]:
@@ -199,3 +219,45 @@ def draw_waves(df, real_waves, fig_start_date, fig_end_date):
     plt.legend(new_handles, new_labels)
     plt.show()
     plt.close()
+
+
+def cal_price_change_rate(filename='000001.SZ.csv', alpha=0.05):
+    '''return a DataFrame of price change of each wave, columns=['price_change_rate', 'type']'''
+    waves = wave_idnetify(filename, alpha)
+    # calculate the price change of each wave
+    pcg = []
+    for i in range(len(waves)-1):
+        pcg.append((waves.iloc[i+1]['price']-waves.iloc[i]['price'])*100/waves.iloc[i]['price'])
+    pcg = DataFrame(pcg, columns=['price_change_rate'])
+    # add sign if >0 or not
+    pcg['type'] = pcg['price_change_rate'].apply(lambda x: 'rise' if x > 0 else 'fall')
+    
+    return pcg
+
+
+def plot_pcg_rate(pcg, cut=0.99):
+    pcg.reset_index(drop=True, inplace=True)
+    pcg_cache = pcg.copy()
+    pcg_cache = pcg_cache[pcg_cache['price_change_rate'] < pcg_cache['price_change_rate'].quantile(cut)]
+    sns.boxplot(x='type', y='price_change_rate', data=pcg_cache, order=['rise', 'fall'])
+    plt.text(1, pcg_cache.groupby('type')['price_change_rate'].median()[0], 
+                round(pcg_cache.groupby('type')['price_change_rate'].median()[0], 2), 
+                ha='center', va='bottom', fontsize=12)
+    plt.text(0, pcg_cache.groupby('type')['price_change_rate'].median()[1], 
+                round(pcg_cache.groupby('type')['price_change_rate'].median()[1], 2), 
+                ha='center', va='bottom', fontsize=12)
+    plt.show()
+
+    sns.histplot(data=pcg_cache, x='price_change_rate', bins=40, hue='type')
+    plt.show()
+
+    pcg_cache['price_change_rate'] = abs(pcg_cache['price_change_rate'])
+    sns.boxplot(x='type', y='price_change_rate', data=pcg_cache, order=['rise', 'fall'])
+    for i in range(len(pcg_cache.groupby('type'))):
+        plt.text(1-i, pcg_cache.groupby('type')['price_change_rate'].median()[i], 
+                round(pcg_cache.groupby('type')['price_change_rate'].median()[i], 2), 
+                ha='center', va='bottom', fontsize=12)
+    plt.show()
+
+    sns.histplot(data=pcg_cache, x='price_change_rate', bins=40, hue='type')
+    plt.show()
