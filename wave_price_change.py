@@ -1,6 +1,7 @@
 from pandas import DataFrame, concat
 import matplotlib.pyplot as plt
 import seaborn as sns
+from matplotlib import colors
 from high_low_xuejie_zuhui import find_hl_MACD_robust, df_init
 
 
@@ -239,7 +240,11 @@ def plot_pcg_rate(pcg, cut=0.99):
     pcg.reset_index(drop=True, inplace=True)
     pcg_cache = pcg.copy()
     pcg_cache = pcg_cache[pcg_cache['price_change_rate'] < pcg_cache['price_change_rate'].quantile(cut)]
-    sns.boxplot(x='type', y='price_change_rate', data=pcg_cache, order=['rise', 'fall'])
+    
+    red = colors.hex2color('#fd5a45')
+    green = colors.hex2color('#3bc66d') 
+    plt.rcParams['figure.figsize'] = [5, 8]
+    sns.boxplot(x='type', y='price_change_rate', data=pcg_cache, order=['rise', 'fall'], palette=[red, green])
     plt.text(1, pcg_cache.groupby('type')['price_change_rate'].median()[0], 
                 round(pcg_cache.groupby('type')['price_change_rate'].median()[0], 2), 
                 ha='center', va='bottom', fontsize=12)
@@ -248,16 +253,19 @@ def plot_pcg_rate(pcg, cut=0.99):
                 ha='center', va='bottom', fontsize=12)
     plt.show()
 
-    sns.histplot(data=pcg_cache, x='price_change_rate', bins=40, hue='type')
+    plt.rcParams['figure.figsize'] = [7,5]
+    sns.histplot(data=pcg_cache, x='price_change_rate', bins=40, hue='type', palette=[green, red])
     plt.show()
 
     pcg_cache['price_change_rate'] = abs(pcg_cache['price_change_rate'])
-    sns.boxplot(x='type', y='price_change_rate', data=pcg_cache, order=['rise', 'fall'])
+    plt.rcParams['figure.figsize'] = [5, 8]
+    sns.boxplot(x='type', y='price_change_rate', data=pcg_cache, order=['rise', 'fall'], palette=[red, green])
     for i in range(len(pcg_cache.groupby('type'))):
         plt.text(1-i, pcg_cache.groupby('type')['price_change_rate'].median()[i], 
                 round(pcg_cache.groupby('type')['price_change_rate'].median()[i], 2), 
                 ha='center', va='bottom', fontsize=12)
     plt.show()
 
-    sns.histplot(data=pcg_cache, x='price_change_rate', bins=40, hue='type')
+    plt.rcParams['figure.figsize'] = [7,5]
+    sns.histplot(data=pcg_cache, x='price_change_rate', bins=40, hue='type', palette=[green, red])
     plt.show()
