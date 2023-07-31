@@ -26,7 +26,7 @@ def close_position(df, threshold=0.1):
     if threshold < 0:
         raise ValueError('Input threshold must be positive.')
     if len(df) < 2:
-        raise ValueError('Input df must contain at least 2 rows.')
+        return pd.DataFrame(columns=['date', 'price', 'status'])
 
     # 初始化变量
     df.reset_index(drop=True, inplace=True)
