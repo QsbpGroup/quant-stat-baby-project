@@ -1,7 +1,6 @@
 from crash import crash
 import pandas as pd
-from horizontal_area import find_horizontal_area
-from high_low_xuejie_zuhui import find_high_low
+from high_low_xuejie_zuhui import find_hl_MACD_robust
 
 
 def open_position(df, threshold=0.4, len_of_sideway=30, gap=30):
@@ -36,17 +35,39 @@ def open_position(df, threshold=0.4, len_of_sideway=30, gap=30):
     df_cache.reset_index(drop=True, inplace=True)
     crash_info = crash(df_cache, threshold=threshold)
     df_cache.columns = ['date', 'price']
+    if len(crash_info) == 0:
+        return result
     crash_end_dates = crash_info['end_date'].tolist()
-    highs, lows = find_high_low(df_cache, draw=False)
+    # highs, lows = find_hl_MACD_robust(df_cache, draw=False)
 
-    # 对于从每个crash_end_date开始的(len_of_sideway + gap)天利用长度为len_of_sideway的滑动窗口计算，
+    # 对于从每个crash_end_date开始的(len_of_sideway + gap)天利用长度为len_of_sideway的滑动窗口计算:
+    # 1. 滑动窗口内的最大值crt_max
+    # 2. 滑动窗口内的最小值crt_min
+    # 3. crash_end_date到滑动窗口末尾的最大值ttl_max
+    # 4. crash_end_date到滑动窗口末尾的最小值ttl_min
+    # 如果crt_max <= ttl_max*1.1 或者 crt_min >= ttl_min*0.9， 则记录当前滑动窗口末尾的日期为买入日期
     for crash_end_date in crash_end_dates:
-        temp_start_date = crash_end_date - pd.Timedelta(days=len_of_sideway-2)
+        temp_start_date = crash_end_date
         temp_end_date = crash_end_date + \
-            pd.Timedelta(days=len_of_sideway*2 + gap)
-        df_temp = df_cache[(df_cache['date'] >= crash_end_date)
+            pd.Timedelta(days=len_of_sideway + gap)
+        df_temp = df_cache[(df_cache['date'] >= temp_start_date)
                            & (df_cache['date'] <= temp_end_date)]
-        judge = find_horizontal_area(df_temp, highs, lows, gamma=0.1, max_len_of_window=60, min_len_of_window=len_of_sideway, only_past=True)
-        if True:
-            result.append(crash_end_date)
+        df_temp.reset_index(drop=True, inplace=True)
+        for i in range(gap):
+            crt_end_date = crash_end_date+pd.Timedelta(days=len_of_sideway)
+            # find the index of the latest line whose date is earlier or equal to than crt_end_date
+            crt_end_index = df_temp[df_temp['date'] <= crt_end_date].index.tolist()[-1]
+            crt_max = df_temp.iloc[i+1:crt_end_index]['price'].max()
+            crt_min = df_temp.iloc[i+1:crt_end_index]['price'].min()
+            ttl_max = df_temp.iloc[0:crt_end_index]['price'].max()
+            ttl_min = df_temp.iloc[0:crt_end_index]['price'].min()
+            if crt_max <= ttl_max*1.1 or crt_min >= ttl_min*0.9:
+                result.append(crash_end_date+pd.Timedelta(days=crt_end_index))
+                break
+
+    # 去除重复的开仓点
+    if len(result) > 0:
+        result = list(set(result))
+        result.sort()
+
     return result

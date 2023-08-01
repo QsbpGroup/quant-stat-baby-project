@@ -342,6 +342,7 @@ def find_hl_MACD_robust(df, filename='000001.SZ.csv', draw_n_days=200, fig_start
     """
     # 初始化df_cache，避免浅拷贝导致的原始df被修改
     df_cache = df.copy()
+    df_cache.columns = ['TRADE_DT', 'S_DQ_CLOSE']
     # 找出MACD
     macd, macd_signal, _ = talib.MACD(df_cache['S_DQ_CLOSE'].values)
     df_cache['diff'] = macd - macd_signal

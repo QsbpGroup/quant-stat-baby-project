@@ -1,6 +1,6 @@
 from pandas import DataFrame
 import matplotlib.pyplot as plt
-from high_low_xuejie_zuhui import find_high_low
+from high_low_xuejie_zuhui import find_hl_MACD_robust
 
 
 def crash(df, threshold=0.4):
@@ -22,7 +22,9 @@ def crash(df, threshold=0.4):
         type=1表示单次暴跌, type=2表示双次内暴跌, type=3表示三次内暴跌
     """
     # 找出高低点
-    highs, lows = find_high_low(df, draw=False)
+    highs, lows = find_hl_MACD_robust(df, draw=False)
+    if len(highs) == 0 or len(lows) == 0:
+        return DataFrame()
     # 计算每个低点到下一个高点的跌幅
     result = DataFrame()
     # 如果第一个低点比第一个高点靠前，删除第一个低点
@@ -40,8 +42,10 @@ def crash(df, threshold=0.4):
                 {'start_date': high['high_date'], 'end_date': low['low_date'], 'type': 1}, ignore_index=True)
         elif i < max_len - 1:
             # 如果跌幅没有超过阈值and下一个高点不回升超过50%，但是这个高点到下一个低点的跌幅超过阈值，记录
-            high_shake = (high['high_price'] - highs[i + 1]['high_price']
-                          ) / (high['high_price'] - low['low_price'])
+            high_shake = 0
+            if high['high_price'] > low['low_price']:
+                high_shake = (high['high_price'] - highs[i + 1]['high_price']
+                                        ) / (high['high_price'] - low['low_price'])
             crash = (high['high_price'] - lows[i+1]
                      ['low_price']) / high['high_price']
             if high_shake > 0.5 and crash > threshold:
@@ -66,7 +70,7 @@ def draw_crash(df, crash, fig_start_date, fig_end_date):
     """
     # 初始化df_cache，避免浅拷贝导致的原始df被修改
     df_cache = df.copy()
-    highs, lows = find_high_low(df_cache, draw=False)
+    highs, lows = find_hl_MACD_robust(df_cache, draw=False)
     df_cache.columns = ['date', 'price']
     highs = DataFrame(highs)
     lows = DataFrame(lows)
