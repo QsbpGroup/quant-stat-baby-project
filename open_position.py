@@ -8,6 +8,7 @@ def open_position(df, threshold=0.4, len_of_sideway=30, gap=30):
     计算开仓点，算法逻辑如下：
     1. 找出在三轮下跌(要求每次反弹不超过上次下跌的50%)内跌幅超过threshold的点
     2. 在这些点中, 找出在随后出现横盘1-2个月的点, 这些点为开仓点
+    3. 确认下跌结束点到买入点之间不存在新的下跌区间
 
     Parameters
     ----------
@@ -57,13 +58,25 @@ def open_position(df, threshold=0.4, len_of_sideway=30, gap=30):
             crt_end_date = crash_end_date+pd.Timedelta(days=len_of_sideway)
             # find the index of the latest line whose date is earlier or equal to than crt_end_date
             crt_end_index = df_temp[df_temp['date'] <= crt_end_date].index.tolist()[-1]
-            crt_max = df_temp.iloc[i+1:crt_end_index]['price'].max()
-            crt_min = df_temp.iloc[i+1:crt_end_index]['price'].min()
-            ttl_max = df_temp.iloc[0:crt_end_index]['price'].max()
-            ttl_min = df_temp.iloc[0:crt_end_index]['price'].min()
+            crt_max = df_temp.iloc[i+1:crt_end_index+1]['price'].max()
+            crt_min = df_temp.iloc[i+1:crt_end_index+1]['price'].min()
+            ttl_max = df_temp.iloc[0:crt_end_index+1]['price'].max()
+            ttl_min = df_temp.iloc[0:crt_end_index+1]['price'].min()
             if crt_max <= ttl_max*1.1 or crt_min >= ttl_min*0.9:
-                result.append(crash_end_date+pd.Timedelta(days=crt_end_index))
+                result.append([crash_end_date, crash_end_date+pd.Timedelta(days=crt_end_index)])
                 break
+
+    # 若result每个区间中包含任一crash_end_date，去除这个区间
+    for i in range(len(result)):
+        for j in range(len(crash_end_dates)):
+            if result[i][0] < crash_end_dates[j] <= result[i][1]:
+                result[i] = 0
+                break
+    result = [x for x in result if x != 0]
+
+    # 计算result中的日期
+    for i in range(len(result)):
+        result[i] = result[i][1]
 
     # 去除重复的开仓点
     if len(result) > 0:
