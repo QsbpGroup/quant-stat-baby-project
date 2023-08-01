@@ -26,7 +26,7 @@ def crash(df, threshold=0.4):
     if len(highs) == 0 or len(lows) == 0:
         return DataFrame()
     # 计算每个低点到下一个高点的跌幅
-    result = DataFrame()
+    result = DataFrame(columns=['start_date', 'end_date', 'type'])
     # 如果第一个低点比第一个高点靠前，删除第一个低点
     if lows[0]['low_date'] < highs[0]['high_date']:
         lows = lows[1:]
@@ -34,6 +34,8 @@ def crash(df, threshold=0.4):
     for i in range(max_len):
         high = highs[i]
         low = lows[i]
+        if len(result) > 0 and (high['high_date'] < result['end_date'].max() or low['low_date'] < result['end_date'].max()):
+            continue
         # 计算跌幅
         crash = (high['high_price'] - low['low_price']) / high['high_price']
         # 如果跌幅超过阈值，记录
@@ -51,15 +53,17 @@ def crash(df, threshold=0.4):
             if high_shake > 0.5 and crash > threshold:
                 result = result.append(
                     {'start_date': high['high_date'], 'end_date': lows[i+1]['low_date'], 'type': 2}, ignore_index=True)
-                if i < max_len - 2:
-                    # 如果跌幅没有超过阈值and下两个高点不回升超过50%，但是这个高点到下两个低点的跌幅超过阈值，记录
+            elif i < max_len - 2:
+                # 如果跌幅没有超过阈值and下两个高点不回升超过50%，但是这个高点到下两个低点的跌幅超过阈值，记录
+                high_shake_twice = 0
+                if highs[i+1]['high_price'] > lows[i+1]['low_price']:
                     high_shake_twice = (highs[i + 1]['high_price'] - highs[i + 2]['high_price']
                                         ) / (highs[i+1]['high_price'] - lows[i+1]['low_price'])
-                    crash_2 = (high['high_price'] - lows[i+2]
-                               ['low_price']) / high['high_price']
-                    if high_shake_twice > 0.5 and crash_2 > threshold:
-                        result = result.append(
-                            {'start_date': high['high_date'], 'end_date': lows[i+2]['low_date'], 'type': 3}, ignore_index=True)
+                crash_2 = (high['high_price'] - lows[i+2]
+                            ['low_price']) / high['high_price']
+                if high_shake > 0.5 and high_shake_twice > 0.5 and crash_2 > threshold:
+                    result = result.append(
+                        {'start_date': high['high_date'], 'end_date': lows[i+2]['low_date'], 'type': 3}, ignore_index=True)
 
     return result
 
