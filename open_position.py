@@ -39,6 +39,7 @@ def open_position(df, threshold=0.4, len_of_sideway=30, gap=30):
     if len(crash_info) == 0:
         return result
     crash_end_dates = crash_info['end_date'].tolist()
+    crash_start_dates = crash_info['start_date'].tolist()
     # highs, lows = find_hl_MACD_robust(df_cache, draw=False)
 
     # 对于从每个crash_end_date开始的(len_of_sideway + gap)天利用长度为len_of_sideway的滑动窗口计算:
@@ -55,21 +56,23 @@ def open_position(df, threshold=0.4, len_of_sideway=30, gap=30):
                            & (df_cache['date'] <= temp_end_date)]
         df_temp.reset_index(drop=True, inplace=True)
         for i in range(gap):
-            crt_end_date = crash_end_date+pd.Timedelta(days=len_of_sideway)
+            # the changing end date of current window of sideway
+            crt_end_date = crash_end_date+pd.Timedelta(days=i+len_of_sideway)
             # find the index of the latest line whose date is earlier or equal to than crt_end_date
-            crt_end_index = df_temp[df_temp['date'] <= crt_end_date].index.tolist()[-1]
+            crt_end_index = df_temp[df_temp['date']
+                                    <= crt_end_date].index.tolist()[-1]
             crt_max = df_temp.iloc[i+1:crt_end_index+1]['price'].max()
             crt_min = df_temp.iloc[i+1:crt_end_index+1]['price'].min()
             ttl_max = df_temp.iloc[0:crt_end_index+1]['price'].max()
             ttl_min = df_temp.iloc[0:crt_end_index+1]['price'].min()
             if crt_max <= ttl_max*1.1 or crt_min >= ttl_min*0.9:
-                result.append([crash_end_date, crash_end_date+pd.Timedelta(days=crt_end_index)])
+                result.append([crash_end_date, df_temp.iloc[crt_end_index]['date']])
                 break
 
-    # 若result每个区间中包含任一crash_end_date，去除这个区间
+    # 若result每个区间中包含任一crash_end_date or crash_start_date，去除这个区间
     for i in range(len(result)):
         for j in range(len(crash_end_dates)):
-            if result[i][0] < crash_end_dates[j] <= result[i][1]:
+            if result[i][0] < crash_end_dates[j] <= result[i][1] or result[i][0] <= crash_start_dates[j] < result[i][1]:
                 result[i] = 0
                 break
     result = [x for x in result if x != 0]
