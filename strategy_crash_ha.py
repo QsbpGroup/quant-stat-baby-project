@@ -321,6 +321,7 @@ def tackle_sell(df_sell_this_day, df_nv, date_change, buy_money, buy_num, index_
     #     buy_df.loc[date_change,'sell']=[[code]]
     # else:
     #   buy_df.loc[date_change,'sell'].append(code)
+    buy_df.to_csv(path_raw + '/buy_df.csv')
     return df_nv, buy_money, buy_num, index_dict, buy_df
 
 
@@ -436,4 +437,11 @@ df_sta.to_excel(path_raw+'/performance.xlsx')
 df_nv_output.to_excel(path_raw+'/net_value_raw.xlsx',index=False)
 df_combine.to_excel(path_raw+'/net_value.xlsx',index=False)
 
-
+# 保存交易历史数据
+nv = pd.read_excel('/Users/kai/Desktop/qs/net_value.xlsx')
+nv.columns = ['TRADE_DT', 'HS300', 'ours']
+trade_history = pd.read_csv('/Users/kai/Desktop/qs/buy_df.csv')
+# 在buy添加nv中的两列，按照TRADE_DT匹配
+trade_history['HS300'] = trade_history['TRADE_DT'].map(nv.set_index('TRADE_DT')['HS300'])
+trade_history['ours'] = trade_history['TRADE_DT'].map(nv.set_index('TRADE_DT')['ours'])
+trade_history.to_csv('/Users/kai/Desktop/qs/trade_history.csv', index=False)
