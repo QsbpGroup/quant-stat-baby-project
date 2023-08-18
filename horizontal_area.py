@@ -212,6 +212,8 @@ def _single_ha(df, current_point, threshold):
     '''
     以current_point为中心，找到df内变化幅度不超过threshold的区间
     '''
+    df = df.copy()
+    df.columns = ['TRADE_DT', 'S_DQ_CLOSE']
     df_1 = df[df['TRADE_DT'] <= current_point['date']]
     df_2 = df[df['TRADE_DT'] >= current_point['date']]
     flag_1 = False
