@@ -218,6 +218,8 @@ def _single_ha(df, current_point, threshold):
     df_2 = df[df['TRADE_DT'] >= current_point['date']]
     flag_1 = False
     flag_2 = False
+    if df_1.empty or df_2.empty:
+        return pd.DataFrame(columns=['start_date', 'end_date', 'interval', 'median_price'])
     # 筛选掉df_1 df_2中仅用一天价格变化幅度超过threshold的数据
     if (df_1.tail(1)['S_DQ_CLOSE'].values[0] < current_point['price'] * (1-threshold)) or (
             df_1.tail(1)['S_DQ_CLOSE'].values[0] > current_point['price'] * (1+threshold)):
