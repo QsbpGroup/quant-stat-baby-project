@@ -3,6 +3,10 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from high_low_xuejie_zuhui import df_init, find_hl_MACD_robust
+from wave_price_change import wave_identify
+from horizontal_area import _single_ha
+import seaborn as sns
 
 
 def Volume_Spikes_up(df, days):
@@ -214,6 +218,174 @@ def save_result_to_csv(result_data, result_filename, results_directory):
     result_df.to_csv(result_file_path, index=False, encoding='utf-8-sig')
 
 
+def wave_identify_with_high_ha(filename='000001.SZ.csv', alpha=0.05, min_ha_length=4, max_ha_length=10):
+    '''
+    识别高位横盘并返回waves with high sideways，在waves所有edo_rise日期附近找到横盘区间 (若有)。
+    具体来说，我们找到以每两个edo_fall之间的区域为窗口，在窗口内以edo_rise为中心点，利用_single_ha识别横盘区间
+
+    Input:
+    ------------
+    filename : str
+        why use it if you have no idea what the filename is? in case u do not know, it is the sotck code that ends with .csv
+
+    alpha : float
+        quantile number used to drop some points from original waves, the larger alpha is, the more hl points will be dropped.
+
+    min_ha_length : int
+        the minimum length of horizontal area
+
+    max_ha_length : int
+        the maximum length of horizontal area
+
+    Output:
+    ------------
+    waves_with_high_ha: DataFrame
+        columns=['date', 'price', 'type'], type can be 'edo_fall', 'edo_rise', 'start_of_ha', 'end_of_ha'.
+    '''
+    df = df_init(filename)
+    df.columns = ['date', 'close']
+    df['date'] = pd.to_datetime(df['date'], format='%Y-%m-%d')
+    waves_with_high_ha = wave_identify(filename, alpha)
+    waves_with_high_ha['date'] = pd.to_datetime(
+        waves_with_high_ha['date'], format='%Y-%m-%d')
+    if waves_with_high_ha.empty:
+        return waves_with_high_ha
+    # make sure every edo_rise has a edo_fall before it and after it
+    if waves_with_high_ha['type'].iloc[0] == 'edo_rise':
+        waves_with_high_ha = waves_with_high_ha.iloc[1:]
+    if waves_with_high_ha.empty:
+        return waves_with_high_ha
+    if waves_with_high_ha['type'].iloc[-1] == 'edo_rise':
+        waves_with_high_ha = waves_with_high_ha.iloc[:-1]
+    # edo_rise need to drop
+    edo_rise_drop_list = []
+    for i in range(int((len(waves_with_high_ha)-1)/2)):
+        tmp_edo_fall_date = waves_with_high_ha['date'].iloc[2*i]
+        tmp_edo_rise_date = waves_with_high_ha['date'].iloc[2*i+1]
+        tmp_edo_fall_date_after = waves_with_high_ha['date'].iloc[2*i+2]
+        df_tmp = df[(df['date'] >= tmp_edo_fall_date) & (
+            df['date'] <= tmp_edo_fall_date_after)]
+        tmp_edo_rise_data = waves_with_high_ha[waves_with_high_ha['date'] == tmp_edo_rise_date]
+        tmp_edo_rise_data_point = tmp_edo_rise_data.iloc[0]
+        df_tmp = df_tmp.reset_index(drop=True)
+        if df_tmp.empty or tmp_edo_rise_data.empty:
+            continue
+        tmp_ha = _single_ha(
+            df_tmp, tmp_edo_rise_data_point, alpha)
+        if not tmp_ha.empty:
+            tmp_start_of_ha_date = tmp_ha['start_date'].iloc[0]
+            tmp_end_of_ha_date = tmp_ha['end_date'].iloc[0]
+            # cal the days difference between tmp_start_of_ha_date and tmp_end_of_ha_date
+            tmp_start_of_ha_date_index = df_tmp[df_tmp['date']
+                                                == tmp_start_of_ha_date].index[0]
+            tmp_end_of_ha_date_index = df_tmp[df_tmp['date']
+                                                == tmp_end_of_ha_date].index[0]
+            tmp_days_diff = tmp_end_of_ha_date_index - \
+                tmp_start_of_ha_date_index
+            if tmp_days_diff < min_ha_length or tmp_days_diff > max_ha_length:
+                continue
+            edo_rise_drop_list.append(tmp_edo_rise_date)
+            # find their price from df_tmp
+            tmp_start_ha_price = df_tmp[df_tmp['date']
+                                        == tmp_start_of_ha_date]['close'].iloc[0]
+            tmp_end_ha_price = df_tmp[df_tmp['date']
+                                      == tmp_end_of_ha_date]['close'].iloc[0]
+            waves_with_high_ha = waves_with_high_ha.append({'date': tmp_start_of_ha_date, 'price': tmp_start_ha_price,
+                                                            'type': 'start_of_ha'}, ignore_index=True)
+            waves_with_high_ha = waves_with_high_ha.append({'date': tmp_end_of_ha_date, 'price': tmp_end_ha_price,
+                                                            'type': 'end_of_ha'}, ignore_index=True)
+    # 去掉waves-with-high-ha中date在edo_rise_drop_list中且type为edo_rise的行
+    waves_with_high_ha = waves_with_high_ha[~((waves_with_high_ha['date'].isin(
+        edo_rise_drop_list)) & (waves_with_high_ha['type'] == 'edo_rise'))]
+    
+    # sort by date and reset index
+    waves_with_high_ha = waves_with_high_ha.sort_values(by='date')
+    waves_with_high_ha = waves_with_high_ha.reset_index(drop=True)
+
+    return waves_with_high_ha
+
+
+def draw_waves_with_high_ha(df, real_waves, fig_start_date, fig_end_date):
+    """
+    画出fig_start_date, fig_end_date之间的crash情况
+    """
+    # 初始化df_cache，避免浅拷贝导致的原始df被修改
+    df_cache = df.copy()
+    highs, lows = find_hl_MACD_robust(df_cache, draw=False)
+    df_cache.columns = ['date', 'price']
+    highs = pd.DataFrame(highs)
+    lows = pd.DataFrame(lows)
+    # 截取需要的数据
+    df_cache = df_cache[(df_cache['date'] >= fig_start_date)
+                        & (df_cache['date'] <= fig_end_date)]
+    highs = highs[(highs['high_date'] >= fig_start_date)
+                  & (highs['high_date'] <= fig_end_date)]
+    lows = lows[(lows['low_date'] >= fig_start_date)
+                & (lows['low_date'] <= fig_end_date)]
+    # 筛选crash中的[start_date, end_date]，确保在df_cache中
+    real_waves = real_waves[(real_waves['date'] >= fig_start_date)
+                            & (real_waves['date'] <= fig_end_date)]
+
+    plt.rcParams['figure.figsize'] = [10, 5]
+    plt.rcParams['font.sans-serif'] = ['Arial Unicode MS']
+
+    # 绘制df的折线图, 颜色浅蓝色
+    plt.plot(df_cache['date'], df_cache['price'], label='stock price')
+    # 将highs中的高点绘制成红色的星星
+    plt.scatter(highs['high_date'], highs['high_price'],
+                color='red', marker='*', s=80, label='high points')
+    # 将lows中的低点绘制成绿色的星星
+    plt.scatter(lows['low_date'], lows['low_price'],
+                color='green', marker='*', s=80, label='low points')
+
+    for i in range(len(real_waves)-1):
+        if real_waves.iloc[i]['type'] == 'edo_fall':
+            plt.axvspan(real_waves.iloc[i]['date'], real_waves.iloc[i+1]['date'],
+                        facecolor='red', alpha=0.15, label='rising waves')
+        elif real_waves.iloc[i]['type'] == 'start_of_ha':
+            plt.axvspan(real_waves.iloc[i]['date'], real_waves.iloc[i+1]['date'],
+                        facecolor='yellow', alpha=0.15, label='high sideways')
+        else:
+            plt.axvspan(real_waves.iloc[i]['date'], real_waves.iloc[i+1]['date'],
+                        facecolor='green', alpha=0.15, label='falling waves')
+    if real_waves.iloc[0]['type'] == 'edo_fall':
+        plt.axvspan(fig_start_date, real_waves.iloc[0]['date'],
+                    facecolor='green', alpha=0.15, label='falling waves')
+    elif real_waves.iloc[0]['type'] == 'end_of_ha':
+        plt.axvspan(fig_start_date, real_waves.iloc[0]['date'],
+                    facecolor='yellow', alpha=0.15, label='high sideways')
+    else:
+        plt.axvspan(fig_start_date, real_waves.iloc[0]['date'],
+                    facecolor='red', alpha=0.15, label='rising waves')
+    if real_waves.iloc[-1]['type'] == 'edo_fall':
+        plt.axvspan(real_waves.iloc[-1]['date'], fig_end_date,
+                    facecolor='red', alpha=0.15, label='rising waves')
+    elif real_waves.iloc[-1]['type'] == 'start_of_ha':
+        plt.axvspan(real_waves.iloc[-1]['date'], fig_end_date,
+                    facecolor='yellow', alpha=0.15, label='high sideways')
+    else:
+        plt.axvspan(real_waves.iloc[-1]['date'], fig_end_date,
+                    facecolor='green', alpha=0.15, label='falling waves')
+
+    # 设置正确的label和title
+    plt.xlabel('date')
+    plt.ylabel('price')
+    plt.title('Waves')
+    handles, labels = plt.gca().get_legend_handles_labels()
+    # legand去重
+    set(labels)
+    new_labels, new_handles = ['stock price', 'high points',
+                               'low points', 'rising waves', 'falling waves', 'high sideways'], []
+    for i in range(len(new_labels)):
+        for j in range(len(labels)):
+            if new_labels[i] == labels[j]:
+                new_handles.append(handles[j])
+                break
+    plt.legend(new_handles, new_labels)
+    plt.show()
+    plt.close()
+
+
 if __name__ == '__main__':
     # 获取股票数据文件夹的路径
     #data_directory = '/Users/zhaochenxi/Desktop/quant/data_csv1'
@@ -331,7 +503,6 @@ if __name__ == '__main__':
                 # Handle the exception (print an error message, log it, etc.)
                 print(f"Error processing {filename}: {e}")
                 continue  # Skip to the next file
-
 
     # 将结果保存到CSV文件（指定编码为UTF-8）
     save_result_to_csv(resut_up_1, 'result_up_1.csv', results_directory_up_1)
