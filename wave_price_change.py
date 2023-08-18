@@ -5,7 +5,7 @@ from matplotlib import colors
 from high_low_xuejie_zuhui import find_hl_MACD_robust, df_init
 
 
-def wave_idnetify(filename='000001.SZ.csv', alpha=0.05):
+def wave_identify(filename='000001.SZ.csv', alpha=0.05):
     """
     this goddamn function is used to identify the TRUE waves (with perfectly no overlap!) in the stock price
 
@@ -224,7 +224,7 @@ def draw_waves(df, real_waves, fig_start_date, fig_end_date):
 
 def cal_price_change_rate(filename='000001.SZ.csv', alpha=0.05):
     '''return a DataFrame of price change of each wave, columns=['price_change_rate', 'type']'''
-    waves = wave_idnetify(filename, alpha)
+    waves = wave_identify(filename, alpha)
     # calculate the price change of each wave
     pcg = []
     for i in range(len(waves)-1):
