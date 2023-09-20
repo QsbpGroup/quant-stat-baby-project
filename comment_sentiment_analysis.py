@@ -7,7 +7,7 @@ import pandas as pd
 from tqdm import tqdm
 
 
-openai.api_key = "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"
+openai.api_key = "OPENAI_API_KEY"
 
 
 def crawler(url='https://xueqiu.com/query/v1/symbol/search/status.json?count=10&comment=0&symbol=SH516160&hl=0&source=all&sort=alpha&page=2&q=&type=13', save=False):
@@ -39,9 +39,9 @@ def crawler(url='https://xueqiu.com/query/v1/symbol/search/status.json?count=10&
 
     if save:
         data_df = pd.DataFrame(data_list, columns=['text', 'comment_time', 'title', 'like_count', 'reply_count', 'favorite_count',
-                                'view_count', 'retweet_count', 'is_hot', 'is_answer', 'is_bonus', 'is_reward', 'reward_count', 'screen_name'])
+                                                   'view_count', 'retweet_count', 'is_hot', 'is_answer', 'is_bonus', 'is_reward', 'reward_count', 'screen_name'])
         data_df.to_csv("./comment_data.csv", encoding="utf_8_sig",
-                        index=False, header=True)
+                       index=False, header=True)
     return data_df
 
 
@@ -88,15 +88,14 @@ def _get_comment(data):
     return data_list
 
 
-
 def get_sentiment(comment):
     """
     Get sentiment from comment
-    
+
     Input:
     ------
     prompt: prompt for openai
-    
+
     Output:
     -------
     return: sentiment(one of Bullish, Bearish, Neutral)
@@ -128,7 +127,6 @@ def get_sentiment(comment):
     return sentiment
 
 
-
 if __name__ == '__main__':
     comment_df = crawler(save=True)
     sentiments = []
@@ -137,4 +135,5 @@ if __name__ == '__main__':
         sentiment = get_sentiment(comment)
         sentiments.append(sentiment)
     comment_df['sentiment'] = sentiments
-    comment_df.to_csv("./comment_data.csv", encoding="utf_8_sig", index=False, header=True)
+    comment_df.to_csv("./comment_data.csv",
+                      encoding="utf_8_sig", index=False, header=True)
