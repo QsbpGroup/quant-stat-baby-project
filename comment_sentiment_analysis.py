@@ -3,6 +3,7 @@ import re
 import time
 import openai
 import random
+import argparse
 import requests
 import pandas as pd
 from tqdm import tqdm
@@ -11,7 +12,7 @@ from tqdm import tqdm
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 
-def crawler(stock_code='CSI000941', save=False):
+def crawler(stock_code='CSI000941', n_pages=100, save=False):
     """
     Crawler for xueqiu.com
 
@@ -30,32 +31,59 @@ def crawler(stock_code='CSI000941', save=False):
         'SZ': 11,
         'CS': 26
     }
+    url_prefix_comment = 'https://xueqiu.com/query/v1/symbol/search/status.json?count=10&comment=0&symbol='
 
     url_response = []
-    for page in tqdm(range(1, 101), desc='Crawling', leave=False):
-        url = 'https://xueqiu.com/query/v1/symbol/search/status.json?count=10&comment=0&symbol=' +\
-            stock_code+'&hl=0&source=all&sort=alpha&page=' + \
+    n_pages = int(n_pages)
+    for page in tqdm(range(1, n_pages+1), desc='Crawling', leave=False):
+        url = url_prefix_comment+stock_code+'&hl=0&source=all&sort=alpha&page=' + \
             str(page)+'&q=&type='+str(url_type.get(stock_code[:2], 26))
-        flag = 0
-        while flag == 0:
-            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36",
-                       "Cookie": "aliyungf_tc=AQAAADriOUCilQoAxZ5btPQfYv7152ox; acw_tc=2760824915856669537353368e2ea5d4c1b87e45dadece330ae07e755b96f1; xq_a_token=2ee68b782d6ac072e2a24d81406dd950aacaebe3; xqat=2ee68b782d6ac072e2a24d81406dd950aacaebe3; xq_r_token=f9a2c4e43ce1340d624c8b28e3634941c48f1052; xq_id_token=eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJ1aWQiOi0xLCJpc3MiOiJ1YyIsImV4cCI6MTU4NzUyMjY2MSwiY3RtIjoxNTg1NjY2OTA4NDgwLCJjaWQiOiJkOWQwbjRBWnVwIn0.YCQ_yUlzhRvTiUgz1BWWDFrsmlxSgsbaaKs0cxsdxnOaMhIjF0qUX-5WNeqfRXe15I5cPHiFf-5AzeRZgjy0_bSId2-jycpDWuSIseOY07nHM306A8Y1vSJJx4Q9gFnWx4ETpbdu1VXyMYKpwVIKfmSb5sbGZYyHDJPQQuNTfIAtPBiIeHWPDRB-wtf0qa5FNSMK3LKHRZooXjUgh-IAFtQihUIr9D81tligmjNYREntMY1gLg5Kq6GjgivfF9CFc11sJ11fZxnSw9e8J_Lmx8XXxhwHv-j4-ANUSIuglM4cT6yCsWa3pGAVMN18r2cV72JNkk343I05DevQkbX8_A; u=481585666954081; Hm_lvt_1db88642e346389874251b5a1eded6e3=1585666971; device_id=24700f9f1986800ab4fcc880530dd0ed; Hm_lpvt_1db88642e346389874251b5a1eded6e3=1585667033"}
-            response = requests.get(url,  headers=headers)
-            temp = response.json()
-            if 'code' in temp:  # 访问失败
-                print(temp, headers)
-                time.sleep(0.5)
-            else:  # 访问成功，不用再访问，跳出循环
-                flag = 1
-            url_response.extend(temp['list'])
+        response_json = _get_response(url)
+        if response_json is None:
+            continue
+        url_response.extend(response_json['list'])
     data_list = _get_comment(url_response)
 
     if save:
         data_df = pd.DataFrame(data_list, columns=['text', 'comment_time', 'title', 'like_count', 'reply_count', 'favorite_count',
-                                                   'view_count', 'retweet_count', 'is_hot', 'is_answer', 'is_bonus', 'is_reward', 'reward_count', 'screen_name'])
+                                                   'view_count', 'retweet_count', 'is_hot', 'is_answer', 'is_bonus', 'is_reward', 'reward_count', 'user_id', 'screen_name', 'followers_count'])
         data_df.to_csv("./comment_data.csv", encoding="utf_8_sig",
                        index=False, header=True)
     return data_df
+
+
+def _get_response(url, headers=''):
+    if headers == '':
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36",
+            "Cookie": "cookiesu=591694835194054; device_id=02e9e5105707187692a3ebf043d62941; remember=1; xq_a_token=eafd58611007968f1177c48119e1a494f9438bfa; xqat=eafd58611007968f1177c48119e1a494f9438bfa; xq_id_token=eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJ1aWQiOjgxNzYzMTQ4NTQsImlzcyI6InVjIiwiZXhwIjoxNjk3NzY1MDkxLCJjdG0iOjE2OTUxODQ5ODY5NTEsImNpZCI6ImQ5ZDBuNEFadXAifQ.aR3PRmaedtoI2LiyidDa5P307GvXVy6A_Lv1cUkhzEdIAStAg0WLCRpiuKla1MBFEh-6jEyyx6he0xZ2JLpOqCRbjZ3WAKyBSdBhn7xi0RteAqtqUP5voH7Lo36nhXnUZCc4rPo7D0d0BFoZvB8zdQYviArhHqdynaI_rzJSKPByaHmwBfBxqukQDCTnWmRVIW6C1C6tCopkKfuveyAjSmu1oe7tI0ujpwSXoU7oVD14FLMXAU5bmAb-i3Aq3PFRfnwWs4_zsYKfbma3Z68Zkbs8fed-mFFqWp_B1Jvx2NqxPdTPGGDoyZuyxrGwWSmIFFLc3JcIwtgoyftx_u1b_g; xq_r_token=4aece27d6ce7b7ba6195f3ec38ddde093f2144dd; xq_is_login=1; u=8176314854; s=ab12mnrdfx; bid=f24325f9c5bb92500d7f9d541ef6ef8f_lmra6p3v; __utmz=1.1695188801.2.2.utmcsr=github.com|utmccn=(referral)|utmcmd=referral|utmcct=/SJTUMisaka/xueqiu; Hm_lvt_1db88642e346389874251b5a1eded6e3=1695184925,1695402118,1695435276,1695587332; __utma=1.486665064.1695186225.1695188801.1695587344.3; __utmc=1; snbim_minify=true; Hm_lpvt_1db88642e346389874251b5a1eded6e3=1695587876; acw_tc=2760827b16955977062921510e9c268f8badec8abd20f813626bea0eaf5168"
+        }
+    max_retries = 3
+    for i in range(max_retries):
+        try:
+            response = requests.get(url, headers=headers)
+            response_json = response.json()
+            return response_json
+        except requests.RequestException as e:
+            time.sleep(3)
+    return None
+
+def _fetch_user_followers_count(user_id):
+# 为了减轻连接压力，添加适当的延迟
+    url_prefix_user = 'https://xueqiu.com/statuses/original/show.json?user_id='
+    url_user = url_prefix_user + str(user_id)
+    
+    time.sleep(0.3)
+    max_retries = 3
+    
+    for i in range(max_retries):
+        try:
+            response = _get_response(url_user)
+            followers_count = response['user']['followers_count']
+            return followers_count
+        except requests.RequestException as e:
+            time.sleep(3)
+    return -1
 
 
 def _get_comment(data):
@@ -72,11 +100,14 @@ def _get_comment(data):
     """
     data_list = []
     pinglun_len = len(data)
-    i = 0
     print('Number of comments:', pinglun_len)
 
-    while i < pinglun_len:
+    for i in tqdm(range(pinglun_len), desc='Extracting comments', leave=False):
         temp_data = data[i]
+        
+        user_id = temp_data['user_id']
+        followers_count = _fetch_user_followers_count(user_id)
+        
         des = '>' + temp_data['description'] + '<'
         pre = re.compile('>(.*?)<')
         text = ''.join(pre.findall(des))
@@ -96,8 +127,7 @@ def _get_comment(data):
         reward_count = temp_data['reward_count']
         screen_name = temp_data['user']['screen_name']
         data_list.append([text, comment_time, title, like_count, reply_count, favorite_count, view_count,
-                          retweet_count, is_hot, is_answer, is_bonus, is_reward, reward_count, screen_name])
-        i += 1
+                          retweet_count, is_hot, is_answer, is_bonus, is_reward, reward_count, user_id, screen_name, followers_count])
     return data_list
 
 
@@ -191,21 +221,26 @@ def get_sentiment(comment):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Crawler and sentiment analysis for xueqiu.com')
+    parser.add_argument('-n', '--n_pages', default=100, type=int, help='number of comments pages to crawl')
+    parser.add_argument('-s', '--sentiment', default='True', type=str, help='determine whether to get sentiment')
+    args = parser.parse_args()
     file_name = 'comment_data.csv'
     if os.path.exists(os.path.join(os.getcwd(), file_name)):
         comment_df = pd.read_csv(file_name)
         if len(comment_df) < 900:
-            comment_df = crawler(save=True)
+            comment_df = crawler(n_pages=args.n_pages, save=True)
     else:
-        comment_df = crawler(save=True)
-    sentiments = []
-    for i in tqdm(range(len(comment_df))):
-        # make sure not to exceed the rate limit of API
-        if (i+1) % 20 == 0:
-            time.sleep(10)
-        comment = comment_df['text'][i]
-        sentiment = get_sentiment(comment)
-        sentiments.append(sentiment)
-    comment_df['sentiment'] = sentiments
-    comment_df.to_csv("./comment_data_with_sentiment.csv",
-                      encoding="utf_8_sig", index=False, header=True)
+        comment_df = crawler(n_pages=args.n_pages, save=True)
+    if args.sentiment not in ['False', 'false', 'FALSE', 'F', 'f', '0', 'no', 'No', 'NO', 'n', 'N']:
+        sentiments = []
+        for i in tqdm(range(len(comment_df))):
+            # make sure not to exceed the rate limit of API
+            if (i+1) % 20 == 0:
+                time.sleep(10)
+            comment = comment_df['text'][i]
+            sentiment = get_sentiment(comment)
+            sentiments.append(sentiment)
+        comment_df['sentiment'] = sentiments
+        comment_df.to_csv("./comment_data_with_sentiment.csv",
+                        encoding="utf_8_sig", index=False, header=True)
