@@ -43,10 +43,11 @@ def crawler(stock_code='CSI000941', n_pages=100, save=False):
             continue
         url_response.extend(response_json['list'])
     data_list = _get_comment(url_response)
+    data_df = pd.DataFrame(data_list, columns=['text', 'comment_time', 'title', 'like_count', 'reply_count', 'favorite_count',
+                                                   'view_count', 'retweet_count', 'is_hot', 'is_answer', 'is_bonus', 'is_reward', 
+                                                   'reward_count', 'user_id', 'screen_name', 'followers_count', 'tag'])
 
     if save:
-        data_df = pd.DataFrame(data_list, columns=['text', 'comment_time', 'title', 'like_count', 'reply_count', 'favorite_count',
-                                                   'view_count', 'retweet_count', 'is_hot', 'is_answer', 'is_bonus', 'is_reward', 'reward_count', 'user_id', 'screen_name', 'followers_count'])
         data_df.to_csv("./comment_data.csv", encoding="utf_8_sig",
                        index=False, header=True)
     return data_df
@@ -56,7 +57,7 @@ def _get_response(url, headers=''):
     if headers == '':
         headers = {
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36",
-            "Cookie": "cookiesu=591694835194054; device_id=02e9e5105707187692a3ebf043d62941; remember=1; xq_a_token=eafd58611007968f1177c48119e1a494f9438bfa; xqat=eafd58611007968f1177c48119e1a494f9438bfa; xq_id_token=eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJ1aWQiOjgxNzYzMTQ4NTQsImlzcyI6InVjIiwiZXhwIjoxNjk3NzY1MDkxLCJjdG0iOjE2OTUxODQ5ODY5NTEsImNpZCI6ImQ5ZDBuNEFadXAifQ.aR3PRmaedtoI2LiyidDa5P307GvXVy6A_Lv1cUkhzEdIAStAg0WLCRpiuKla1MBFEh-6jEyyx6he0xZ2JLpOqCRbjZ3WAKyBSdBhn7xi0RteAqtqUP5voH7Lo36nhXnUZCc4rPo7D0d0BFoZvB8zdQYviArhHqdynaI_rzJSKPByaHmwBfBxqukQDCTnWmRVIW6C1C6tCopkKfuveyAjSmu1oe7tI0ujpwSXoU7oVD14FLMXAU5bmAb-i3Aq3PFRfnwWs4_zsYKfbma3Z68Zkbs8fed-mFFqWp_B1Jvx2NqxPdTPGGDoyZuyxrGwWSmIFFLc3JcIwtgoyftx_u1b_g; xq_r_token=4aece27d6ce7b7ba6195f3ec38ddde093f2144dd; xq_is_login=1; u=8176314854; s=ab12mnrdfx; bid=f24325f9c5bb92500d7f9d541ef6ef8f_lmra6p3v; __utmz=1.1695188801.2.2.utmcsr=github.com|utmccn=(referral)|utmcmd=referral|utmcct=/SJTUMisaka/xueqiu; Hm_lvt_1db88642e346389874251b5a1eded6e3=1695184925,1695402118,1695435276,1695587332; __utma=1.486665064.1695186225.1695188801.1695587344.3; __utmc=1; snbim_minify=true; Hm_lpvt_1db88642e346389874251b5a1eded6e3=1695587876; acw_tc=2760827b16955977062921510e9c268f8badec8abd20f813626bea0eaf5168"
+            "Cookie": "cookiesu=591694835194054; device_id=02e9e5105707187692a3ebf043d62941; remember=1; xq_is_login=1; u=8176314854; s=ab12mnrdfx; bid=f24325f9c5bb92500d7f9d541ef6ef8f_lmra6p3v; __utmz=1.1695188801.2.2.utmcsr=github.com|utmccn=(referral)|utmcmd=referral|utmcct=/SJTUMisaka/xueqiu; __utma=1.486665064.1695186225.1695587344.1695604057.4; xq_a_token=76b609375630ee3af674d6ff1312edcc54cda518; xqat=76b609375630ee3af674d6ff1312edcc54cda518; xq_id_token=eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJ1aWQiOjgxNzYzMTQ4NTQsImlzcyI6InVjIiwiZXhwIjoxNjk5MTk3MDMxLCJjdG0iOjE2OTY2MDUwMzExMzcsImNpZCI6ImQ5ZDBuNEFadXAifQ.f7xKDW5MpDFMH2Opwn90zwIVVTsSZDcM8BT12a_ID-SfjvDJabSF-i7iejn5UH2TGmfdHT3uJjG8tEwphtUZGhqT4wB1cQI6jOtAToMRnTPjEIlM4_FYrFCL9KyxltsL2HE75AzoZiNYrx9L4JYWaTHwVb8EyOlxZJCb7azWIajJvEgPbKOJODA25J9iu5qmankMpG0RcGHeVvajJbZyt-yU1rTJI8LEeo_RsxgBIxJg9K5HiiMkWs3VNkyXhqqZ5mHxRMaT7Fl5XAT1kRorW799DJBpwFZhY0fNNtNB7B0D0EUL5fBENGzKVGrUGu9QTGkVLZNGpFvIB4ACnXJ8Gg; xq_r_token=034012b5249fa1ae316050a7251e6d9a403ea76b; Hm_lvt_1db88642e346389874251b5a1eded6e3=1695402118,1695435276,1695587332,1696605033; snbim_minify=true; Hm_lpvt_1db88642e346389874251b5a1eded6e3=1696631105; acw_tc=2760779616966318847376306e9556dc4f4ed8169fb3c338239efbc1e25e52"
         }
     max_retries = 3
     for i in range(max_retries):
@@ -69,6 +70,10 @@ def _get_response(url, headers=''):
     return None
 
 def _fetch_user_followers_count(user_id):
+    """
+    input: user_id
+    output: followers_count
+    """
 # 为了减轻连接压力，添加适当的延迟
     url_prefix_user = 'https://xueqiu.com/statuses/original/show.json?user_id='
     url_user = url_prefix_user + str(user_id)
@@ -79,7 +84,7 @@ def _fetch_user_followers_count(user_id):
     for i in range(max_retries):
         try:
             response = _get_response(url_user)
-            followers_count = response['user']['followers_count']
+            followers_count = int(response['user']['followers_count'])
             return followers_count
         except requests.RequestException as e:
             time.sleep(3)
@@ -107,6 +112,7 @@ def _get_comment(data):
         
         user_id = temp_data['user_id']
         followers_count = _fetch_user_followers_count(user_id)
+        tag = ['路人', '大牛'][followers_count > 10000]
         
         des = '>' + temp_data['description'] + '<'
         pre = re.compile('>(.*?)<')
@@ -127,7 +133,7 @@ def _get_comment(data):
         reward_count = temp_data['reward_count']
         screen_name = temp_data['user']['screen_name']
         data_list.append([text, comment_time, title, like_count, reply_count, favorite_count, view_count,
-                          retweet_count, is_hot, is_answer, is_bonus, is_reward, reward_count, user_id, screen_name, followers_count])
+                          retweet_count, is_hot, is_answer, is_bonus, is_reward, reward_count, user_id, screen_name, followers_count, tag])
     return data_list
 
 
@@ -181,7 +187,7 @@ def chat_completions_with_backoff(**kwargs):
     return openai.ChatCompletion.create(**kwargs)
 
 
-def get_sentiment(comment):
+def get_sentiment(comment, model_choose):
     """
     Get sentiment from comment
 
@@ -194,14 +200,18 @@ def get_sentiment(comment):
     return: sentiment(one of Bullish, Bearish, Neutral)
     """
     system_prompt = """ 
-    You are now acting as an experienced stock market manager. The user will provide you with a snippet of discussion from a Chinese stock market forum regarding a specific stock or sector. Your task is to evaluate the sentiment expressed by the individual who posted the text about the stock or sector in question. You are good at analysing sentiment from the Chinese stock market forum.
-    Output Format: reply only one of the following: Bullish, Bearish, or Neutral. Prioritize determining whether the sentiment is Bullish or Bearish; only use "Neutral" if the sentiment is genuinely ambiguous or unclear.
+    Role: Pretend you are an experienced stock market manager. You are good at analysing sentiment from the Chinese stock market forum.
+    Background: The user will provide you with a snippet of discussion from a stock forum regarding a specific stock or sector. Your task is to evaluate the sentiment expressed by the individual.
+    Output Format: reply only one of the following: Bullish, Bearish, or Neutral. 
+    Note: Prioritize determining whether the sentiment is Bullish or Bearish; only use "Neutral" if the sentiment is genuinely ambiguous or unclear.
     """
+    model=["gpt-3.5-turbo", "gpt-4"][model_choose == 'gpt-4']
+    
     times = 0
     while True:
         times += 1
         response = chat_completions_with_backoff(
-            model="gpt-4",
+            model=model,
             temperature=0,
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -210,7 +220,7 @@ def get_sentiment(comment):
         )
         sentiment = response['choices'][0]['message']['content']
         # count words
-        if len(sentiment.split()) == 1:
+        if sentiment in ['Bullish', 'Bearish', 'Neutral']:
             break
         else:
             if times > 2:
@@ -224,6 +234,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Crawler and sentiment analysis for xueqiu.com')
     parser.add_argument('-n', '--n_pages', default=100, type=int, help='number of comments pages to crawl')
     parser.add_argument('-s', '--sentiment', default='True', type=str, help='determine whether to get sentiment')
+    parser.add_argument('-g', '--gpt', default='gpt-4', type=str, help='gpt model to use')
     args = parser.parse_args()
     file_name = 'comment_data.csv'
     if os.path.exists(os.path.join(os.getcwd(), file_name)):
@@ -234,12 +245,12 @@ if __name__ == '__main__':
         comment_df = crawler(n_pages=args.n_pages, save=True)
     if args.sentiment not in ['False', 'false', 'FALSE', 'F', 'f', '0', 'no', 'No', 'NO', 'n', 'N']:
         sentiments = []
-        for i in tqdm(range(len(comment_df))):
+        for i in tqdm(range(len(comment_df)), desc='Getting sentiment', leave=False):
             # make sure not to exceed the rate limit of API
             if (i+1) % 20 == 0:
                 time.sleep(10)
             comment = comment_df['text'][i]
-            sentiment = get_sentiment(comment)
+            sentiment = get_sentiment(comment, model_choose=args.gpt)
             sentiments.append(sentiment)
         comment_df['sentiment'] = sentiments
         comment_df.to_csv("./comment_data_with_sentiment.csv",
