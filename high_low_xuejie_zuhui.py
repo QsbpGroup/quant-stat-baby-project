@@ -11,14 +11,13 @@ results_directory = os.path.join(
     data_directory, '_results_'+strftime("%h%d_%H%M"))
 
 
-def df_init(filename='000001.SZ.csv'):
+def df_init(filename='000001.SZ.csv', cols=['TRADE_DT', 'S_DQ_CLOSE']):
     # 构建完整的文件路径
     file_path = os.path.join(data_directory, filename)
     # print('Current file path is', file_path)
     df = pd.read_csv(file_path)
     df['TRADE_DT'] = pd.to_datetime(df['TRADE_DT'], format='%Y%m%d')
-    # 仅用到日期和收盘价两列
-    df = df[['TRADE_DT', 'S_DQ_CLOSE']]
+    df = df[cols]
     return df
 
 
